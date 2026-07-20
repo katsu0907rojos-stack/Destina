@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DESTINA — 写真でめぐる、最高のホテル体験</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,450;0,9..144,600;0,9..144,900;1,9..144,450&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#0F1210;
+    --void-2:#171B18;
+    --void-3:#1F2420;
+    --paper:#F6F3EC;
+    --paper-dim:#DAD4C4;
+    --brass:#C9A15A;
+    --brass-soft:rgba(201,161,90,0.16);
+    --moss:#5B6E52;
+    --stone:#9C9284;
+    --clay:#B65C3D;
+    --line:rgba(246,243,236,0.12);
+    --line-soft:rgba(246,243,236,0.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--void);
+    color:var(--paper);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  ::selection{ background:var(--brass-soft); color:var(--paper); }
+  .serif{ font-family:'Fraunces', serif; }
+  .mono{ font-family:'IBM Plex Mono', monospace; letter-spacing:0.02em; }
+  a{ color:inherit; text-decoration:none; }
+  button{ font-family:inherit; cursor:pointer; }
+
+  /* ---------- top nav ---------- */
+  .nav{
+    position:sticky; top:0; z-index:40;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 24px;
+    background:rgba(15,18,16,0.86);
+    backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line-soft);
+  }
+  .logo{ display:flex; flex-direction:column; line-height:1; }
+  .logo .mark{ font-size:21px; font-weight:900; letter-spacing:0.04em; font-style:normal; text-transform:uppercase; }
+  .logo .sub{ font-family:'Inter',sans-serif; font-size:10.5px; letter-spacing:0.04em; color:var(--stone); margin-top:6px; font-weight:600; }
+  .tabs{ display:flex; gap:2px; background:var(--void-2); padding:4px; border-radius:999px; border:1px solid var(--line-soft); }
+  .tab-btn{
+    background:transparent; border:none; color:var(--stone);
+    font-size:12.5px; padding:8px 16px; border-radius:999px;
+    letter-spacing:0.03em; transition:all .25s ease;
+  }
+  .tab-btn.active{ background:var(--paper); color:var(--void); }
+  .fav-count{
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:16px; height:16px; padding:0 4px; margin-left:6px;
+    background:var(--brass); color:var(--void); border-radius:999px;
+    font-size:10px; font-weight:600; font-family:'IBM Plex Mono',monospace;
+    vertical-align:middle;
+  }
+
+  /* ---------- filter chips ---------- */
+  .filters-wrap{
+    display:flex; align-items:center; gap:2px;
+    max-width:640px; margin:0 auto; padding:16px 12px 4px;
+  }
+  .filters{
+    display:flex; gap:8px; overflow-x:auto; scroll-behavior:smooth;
+    scrollbar-width:none; flex:1; min-width:0; padding:2px 2px;
+  }
+  .filters::-webkit-scrollbar{ display:none; }
+  .filter-arrow{
+    flex:none; width:24px; height:24px; border-radius:50%; border:none;
+    background:rgba(246,243,236,0.07); color:var(--stone);
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; transition:all .2s ease;
+  }
+  .filter-arrow:hover{ background:rgba(246,243,236,0.16); color:var(--paper); }
+  .chip{
+    flex:none; background:transparent; border:1px solid var(--line);
+    color:var(--paper-dim); font-size:12px; padding:7px 14px; border-radius:999px;
+    white-space:nowrap; transition:all .2s ease;
+  }
+  .chip.active{ background:var(--paper); color:var(--void); border-color:var(--paper); }
+
+  /* ---------- feed ---------- */
+  .feed{ max-width:640px; margin:0 auto; padding:16px 20px 80px; }
+
+  @media (min-width:880px){
+    .filters-wrap{ max-width:1180px; }
+    .feed{ max-width:1180px; }
+    #cardList{ display:grid; grid-template-columns:1fr 1fr; column-gap:40px; row-gap:8px; }
+    .card{ margin-bottom:52px; }
+  }
+  .intro{ padding:8px 4px 26px; border-bottom:1px solid var(--line-soft); margin-bottom:22px; }
+  .intro h1{ font-size:26px; font-weight:450; margin:0 0 8px; line-height:1.35; }
+  .intro p{ font-size:13px; color:var(--stone); margin:0; line-height:1.7; }
+
+  .card{ margin-bottom:44px; }
+  .card-head{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; padding:0 2px;}
+  .card-name{ font-size:20px; font-weight:450; cursor:pointer; }
+  .card-name:hover{ color:var(--brass); }
+  .card-loc{ font-size:11px; color:var(--stone); margin-top:5px; }
+  .card-loc .dot{ margin:0 6px; opacity:0.5; }
+
+  .stamp{
+    flex:none; width:38px; height:38px; border-radius:50%;
+    border:1.5px dashed var(--line); background:transparent;
+    display:flex; align-items:center; justify-content:center;
+    position:relative; transition:all .25s ease;
+  }
+  .stamp svg{ width:15px; height:15px; }
+  .stamp path{ stroke:var(--stone); fill:none; stroke-width:1.6; transition:all .25s ease; }
+  .stamp.active{ border-color:var(--brass); border-style:solid; background:var(--brass-soft); }
+  .stamp.active path{ stroke:var(--brass); fill:var(--brass); }
+
+  .gallery-wrap{ position:relative; }
+  .gallery{
+    display:flex; gap:6px; overflow-x:auto; scroll-snap-type:x mandatory;
+    border-radius:2px; scrollbar-width:none;
+  }
+  .gallery::-webkit-scrollbar{ display:none; }
+  .frame{
+    position:relative; flex:none; scroll-snap-align:start;
+    width:100%; aspect-ratio:3/2; overflow:hidden; background:var(--void-2);
+  }
+  .frame:not(:first-child){ width:78%; aspect-ratio:3/2; }
+  .frame img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .frame-art{ width:100%; height:100%; position:relative; overflow:hidden; }
+  .frame-photo{
+    position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1;
+  }
+  .frame-art::after{
+    content:''; position:absolute; inset:0;
+    background-image:var(--grain);
+    mix-blend-mode:overlay; opacity:0.5; pointer-events:none;
+  }
+  .frame-art::before{
+    content:''; position:absolute; inset:0;
+    background:radial-gradient(120% 90% at 78% 8%, rgba(255,255,255,0.30), transparent 55%),
+               radial-gradient(90% 70% at 12% 96%, rgba(0,0,0,0.35), transparent 60%);
+    pointer-events:none;
+  }
+  .frame-cap{
+    position:absolute; left:10px; bottom:9px; font-size:10px; letter-spacing:0.02em;
+    color:var(--paper); text-shadow:0 1px 6px rgba(0,0,0,0.5); z-index:2; max-width:75%;
+  }
+  .frame-idx{
+    position:absolute; bottom:9px; right:10px; font-size:9.5px;
+    color:var(--paper); background:rgba(15,18,16,0.55); backdrop-filter:blur(3px);
+    padding:2px 7px; border-radius:20px; font-family:'IBM Plex Mono',monospace; letter-spacing:0.04em;
+    z-index:2;
+  }
+  .sprocket{
+    position:absolute; top:0; left:0; right:0; height:5px;
+    background-image:repeating-linear-gradient(90deg, var(--void) 0 3px, transparent 3px 9px);
+    opacity:0.55; z-index:2;
+  }
+
+  .gallery-arrow{
+    position:absolute; top:50%; transform:translateY(-50%); z-index:5;
+    width:32px; height:32px; border-radius:50%; border:none;
+    background:rgba(15,18,16,0.32); backdrop-filter:blur(3px);
+    display:flex; align-items:center; justify-content:center;
+    opacity:0.75; transition:opacity .2s ease, background .2s ease;
+  }
+  .gallery-arrow:hover{ opacity:1; background:rgba(15,18,16,0.5); }
+  .gallery-arrow.left{ left:8px; }
+  .gallery-arrow.right{ right:8px; }
+  .gallery-arrow svg{ width:9px; height:9px; }
+  .gallery-arrow polygon{ fill:rgba(246,243,236,0.85); }
+
+  .card-foot{ display:flex; justify-content:space-between; align-items:center; padding:12px 2px 0; }
+  .price{ font-family:'IBM Plex Mono',monospace; font-size:13.5px; }
+  .price .from{ color:var(--stone); font-size:10.5px; margin-left:3px;}
+  .rating{ font-size:11px; color:var(--stone); margin-left:12px; }
+  .rating b{ color:var(--paper); font-weight:500; }
+  .detail-link{
+    font-size:11.5px; color:var(--brass); display:flex; align-items:center; gap:4px;
+    border-bottom:1px solid transparent;
+  }
+  .detail-link:hover{ border-color:var(--brass); }
+
+  /* ---------- modal ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(8,9,8,0.72); backdrop-filter:blur(4px);
+    z-index:100; display:none; align-items:flex-end; justify-content:center;
+  }
+  .overlay.open{ display:flex; }
+  .modal{
+    background:var(--void-2); width:100%; max-width:640px; max-height:92vh; overflow-y:auto;
+    border-radius:18px 18px 0 0; border:1px solid var(--line-soft); border-bottom:none;
+    animation:rise .35s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes rise{ from{ transform:translateY(24px); opacity:0;} to{ transform:translateY(0); opacity:1;} }
+  .modal-hero{ position:relative; width:100%; aspect-ratio:4/3; overflow:hidden; }
+  .modal-hero img{ width:100%; height:100%; object-fit:cover; }
+  .modal-hero .frame-art{ position:absolute; inset:0; }
+  .modal-close{
+    position:absolute; top:16px; right:16px; width:34px; height:34px; border-radius:50%;
+    background:rgba(15,18,16,0.6); backdrop-filter:blur(6px); border:1px solid var(--line);
+    color:var(--paper); font-size:16px; display:flex; align-items:center; justify-content:center;
+  }
+  .modal-body{ padding:26px 26px 40px; }
+  .modal-eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.18em; color:var(--brass); text-transform:uppercase; }
+  .modal-title{ font-size:28px; margin:8px 0 4px; }
+  .modal-loc{ color:var(--stone); font-size:12.5px; margin-bottom:20px;}
+  .modal-desc{ font-size:13.5px; line-height:1.9; color:var(--paper-dim); margin-bottom:22px; }
+
+  .tag-row{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:24px; }
+  .tag{ font-size:10.5px; border:1px solid var(--line); color:var(--stone); padding:5px 11px; border-radius:999px; }
+
+  .stat-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line-soft); border:1px solid var(--line-soft); border-radius:10px; overflow:hidden; margin-bottom:24px; }
+  .stat{ background:var(--void); padding:14px 10px; text-align:center; }
+  .stat .v{ font-family:'IBM Plex Mono',monospace; font-size:15px; color:var(--brass); }
+  .stat .l{ font-size:9.5px; color:var(--stone); margin-top:5px; letter-spacing:0.04em; }
+
+  .map-box{
+    position:relative; height:170px; border-radius:12px; overflow:hidden; margin-bottom:24px;
+    border:1px solid var(--line-soft); background:var(--void-3);
+  }
+  .map-box iframe{ width:100%; height:100%; border:0; display:block; filter:grayscale(0.15) contrast(1.05); }
+  .map-coord{ position:absolute; bottom:10px; left:12px; font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--paper-dim); background:rgba(15,18,16,0.6); padding:3px 8px; border-radius:5px; pointer-events:none; z-index:2; }
+
+  .modal-actions{ display:flex; gap:10px; }
+  .btn{
+    flex:1; text-align:center; padding:14px; border-radius:10px; font-size:13px; font-weight:500;
+    display:flex; align-items:center; justify-content:center; gap:6px; border:1px solid var(--line);
+  }
+  .btn-primary{ background:var(--brass); color:var(--void); border-color:var(--brass); }
+  .btn-ghost{
+    flex:0 0 52px; height:52px; padding:0; border-radius:50%;
+    border:1.5px dashed var(--line); background:transparent;
+    color:var(--stone);
+  }
+  .btn-ghost svg{ width:18px; height:18px; }
+  .btn-ghost path{ stroke:var(--stone); fill:none; stroke-width:1.6; transition:all .25s ease; }
+  .btn-ghost:hover{ border-color:var(--paper-dim); }
+  .btn-ghost:hover path{ stroke:var(--paper); }
+  .btn-ghost.active{ border-color:var(--brass); border-style:solid; background:var(--brass-soft); }
+  .btn-ghost.active path{ stroke:var(--brass); fill:var(--brass); }
+
+  /* ---------- compare page ---------- */
+  .compare-wrap{ max-width:920px; margin:0 auto; padding:28px 20px 80px; }
+  .compare-head h1{ font-size:24px; margin:0 0 6px; font-weight:450; }
+  .compare-head p{ font-size:12.5px; color:var(--stone); margin:0 0 26px; }
+  .empty{ text-align:center; padding:80px 20px; border:1px dashed var(--line); border-radius:16px; }
+  .empty .ico{ font-size:26px; margin-bottom:14px; }
+  .empty p{ color:var(--stone); font-size:13px; margin:0 0 18px; }
+  .empty button{ background:var(--paper); color:var(--void); border:none; padding:11px 22px; border-radius:999px; font-size:12.5px; }
+
+  .table-scroll{ overflow-x:auto; border-radius:12px; border:1px solid var(--line-soft); }
+  table{ border-collapse:collapse; width:100%; min-width:640px; }
+  th,td{ padding:14px 16px; text-align:left; border-bottom:1px solid var(--line-soft); font-size:12.5px; white-space:nowrap; }
+  thead th{ font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--stone); background:var(--void-2); }
+  tbody th{ font-size:9.5px; color:var(--stone); font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.08em; background:var(--void-2); position:sticky; left:0; }
+  .th-photo img{ width:96px; height:64px; object-fit:cover; border-radius:6px; display:block; }
+  .th-photo .frame-art{ width:96px; height:64px; border-radius:6px; }
+  .th-name{ font-size:13px; }
+  .th-name .loc{ color:var(--stone); font-size:10.5px; margin-top:3px; }
+  .price-cell{ font-family:'IBM Plex Mono',monospace; }
+  .price-cell.best{ color:var(--brass); font-weight:600; }
+  .price-cell.best::after{ content:" ◆最安"; font-size:9px; }
+  .remove-btn{ color:var(--stone); font-size:11px; border:1px solid var(--line); border-radius:6px; padding:5px 10px; }
+  .book-btn{
+    display:inline-block; color:var(--void); background:var(--brass); font-size:11.5px; font-weight:500;
+    border-radius:6px; padding:7px 12px; white-space:nowrap; transition:opacity .2s ease;
+  }
+  .book-btn:hover{ opacity:0.85; }
+  .remove-btn:hover{ color:var(--clay); border-color:var(--clay); }
+
+  footer.credit{ text-align:center; padding:30px 20px 50px; font-size:10.5px; color:var(--stone); }
+  footer.credit .mono{ opacity:0.7; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="logo">
+    <span class="mark serif">Destina</span>
+    <span class="sub">Curated Destination Hotels</span>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="feed" onclick="switchTab('feed')">ホーム</button>
+    <button class="tab-btn" data-tab="compare" onclick="switchTab('compare')">比較する<span class="fav-count" id="favCount">0</span></button>
+  </div>
+</nav>
+
+<div class="filters-wrap">
+  <button class="filter-arrow" onclick="scrollFilters(-1)" aria-label="フィルターを左へ">‹</button>
+  <div class="filters" id="filters"></div>
+  <button class="filter-arrow" onclick="scrollFilters(1)" aria-label="フィルターを右へ">›</button>
+</div>
+
+<main id="feedPage" class="feed">
+  <div class="intro">
+    <h1 class="serif">目的地は、ホテルになる。</h1>
+    <p>「旅行先を決めてからホテルを探す」のではなく、「このホテルに泊まりたいから、その街へ行く」<br class="br">ホテルとの出会いから旅先を選ぶ、新しい旅のための比較サイトです。</p>
+  </div>
+  <div id="cardList"></div>
+</main>
+
+<main id="comparePage" class="compare-wrap" style="display:none;"></main>
+
+<footer class="credit">
+  <div class="mono">DESTINA — PROTOTYPE / 写真はイメージです（ダミー画像を使用）</div>
+</footer>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<script>
+const HOTELS = [
+  {
+    id:"ryukyu-nashiro",
+    name:"琉球ホテル&リゾート 名城ビーチ",
+    region:"沖縄・糸満市",
+    tags:["ビーチフロント","全室オーシャンフロント","6種のプール"],
+    category:["ビーチフロント"],
+    price:29000,
+    rating:4.7,
+    built:2022,
+    rooms:443,
+    renovated:null,
+    coord:"26.1013° N, 127.6912° E",
+    access:"那覇空港から車で約20分（空港リムジンバスあり）",
+    desc:"2022年開業。全443室すべてがバルコニー付きのオーシャンフロントで、県内最大級の6種のプールと9つのレストラン＆バーを併設した大型リゾート。目の前には白砂の名城ビーチが広がる。",
+    hue:190,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/183412/183412.jpg",
+    photoUrls:{1:"https://trvimg.r10s.jp/share/image_up/183412/LARGE/c9d5c56b1b28a3cd4f0db1b4c1121fe6e7da190c.47.9.26.3.jpg",2:"https://trvimg.r10s.jp/share/image_up/183412/LARGE/fbd8623885da3e5c6eea5fbfee628fd97e80c524.47.9.26.3.jpg",3:"https://trvimg.r10s.jp/share/image_up/183412/LARGE/7d4cbc13414c05a8a69955a9599343facb8f4587.47.9.26.3.jpg",4:"https://trvimg.r10s.jp/share/image_up/183412/LARGE/8e5af7f0e6ab1f279b8524038d7719ce4115307c.47.9.26.3.jpg"},
+    photos:["施設外観・全景","施設・リゾート全景","デラックスツイン","ワイドツイン","プレミアツイン（オーシャンビュー）"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F183412%2F183412.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"uza-terrace",
+    name:"ジ・ウザテラス ビーチクラブヴィラズ",
+    region:"沖縄・読谷村",
+    tags:["プライベートプール","全室ヴィラ","ルレ・エ・シャトー加盟"],
+    category:["ビーチフロント","プライベートプール"],
+    price:115000,
+    rating:4.9,
+    built:null,
+    rooms:null,
+    renovated:null,
+    coord:"26.4234° N, 127.7286° E",
+    access:"那覇空港から車で約70分（送迎の相談可）",
+    desc:"全室88平米以上、プライベートプール付きのヴィラタイプリゾート。世界的会員組織「ルレ・エ・シャトー」に沖縄で初めて加盟し、24時間対応のバトラーサービスでもてなす。",
+    hue:196,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/176665/176665.jpg",
+    photoUrls:{1:"https://trvimg.r10s.jp/share/image_up/176665/LARGE/dbc4daddfd16905d985c02080a6957e8ee5f023f.47.9.26.3.jpg",2:"https://trvimg.r10s.jp/share/image_up/176665/LARGE/e8284ee39bd9a4276ab8dcb981514052b33333f9.47.9.26.3.jpg",3:"https://trvimg.r10s.jp/share/image_up/176665/LARGE/70b47b86b700fec4e376abb174d8a95594e51915.47.9.26.3.jpg",4:"https://trvimg.r10s.jp/share/image_up/176665/LARGE/29cc971c0a83db679ad066c9d9465471cda8ea3a.47.9.26.3.jpg"},
+    photos:["施設外観・全景","施設・リゾート全景","クラブプールヴィラ 2ベッドルーム","プレミアムヴィラ（ジェットスパ付）","クラブプールヴィラ（キング）"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F176665%2F176665.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"shigira-alamanda",
+    name:"シギラベイサイドスイート アラマンダ",
+    region:"沖縄・宮古島",
+    tags:["プールヴィラ","全室スイート","宮古ブルー"],
+    category:["ビーチフロント","プライベートプール"],
+    price:35000,
+    rating:4.5,
+    built:null,
+    rooms:null,
+    renovated:null,
+    coord:"24.7361° N, 125.2947° E",
+    access:"宮古空港からシャトルバスあり（10:00〜17:30受付）",
+    desc:"洗練された大人のための全室スイートのプレミアム・プライベートホテル。ラグーン棟は国内最大級のオールスイートプールヴィラで、宮古ブルーの海を望む贅沢なステイに。",
+    hue:184,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/56662/56662.jpg",
+    photoUrls:{1:"https://trvimg.r10s.jp/share/image_up/56662/LARGE/96c8a1492aed4d1ba8cdb704e757b0fc03777252.47.9.26.3.jpg",2:"https://trvimg.r10s.jp/share/image_up/56662/LARGE/378262b829b953421a25cbde37182ebdbe7aa32e.47.9.26.3.jpg",3:"https://trvimg.r10s.jp/share/image_up/56662/LARGE/13ab7ef2eb5ceb30973f0cb6b22b9254858d7467.47.9.26.3.jpg",4:"https://trvimg.r10s.jp/share/image_up/56662/LARGE/bb52ead2885278f01b8e43aedf9a46df5b7e6cfa.47.9.26.3.jpg"},
+    photos:["施設外観・全景","施設・リゾート全景","スーペリアスイート","ジャグジースイート","プールヴィラロイヤルスイート（サウナ付）"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F56662%2F56662.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"mifuneyama-rakuen",
+    name:"御船山楽園ホテル",
+    region:"佐賀・武雄温泉",
+    tags:["温泉","サウナ","日本庭園"],
+    category:["温泉付き客室","サウナ付き客室"],
+    price:97000,
+    rating:4.2,
+    built:null,
+    rooms:null,
+    renovated:null,
+    coord:"33.1972° N, 129.9908° E",
+    access:"JR佐世保線「武雄温泉駅」より車で5分",
+    desc:"15万坪の広大な敷地に日本庭園「御船山楽園」が広がる温泉旅館。今夏、男女大浴場が全面リニューアルし、メディテーションサウナと16度の水風呂を新設。佐賀牛や地元食材の会席料理も名物。",
+    hue:104,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/13417/13417.jpg",
+    photoUrls:{1:"https://trvimg.r10s.jp/share/image_up/13417/LARGE/0f0d587fcfef35947fb5624ecfb5540ea873c3af.47.1.26.2.jpg"},
+    photos:["庭園と施設外観","本館 和室"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F13417%2F13417.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"ond-hotel",
+    name:"OND HOTEL",
+    region:"佐賀・武雄温泉",
+    tags:["温泉","サウナ","佐賀牛"],
+    category:["温泉付き客室","サウナ付き客室"],
+    price:20600,
+    rating:4.4,
+    built:2023,
+    rooms:30,
+    renovated:null,
+    coord:"33.1850° N, 129.9700° E",
+    access:"武雄温泉駅から車で約10分（無料シャトルバスあり）",
+    desc:"2023年12月グランドオープン。武雄の天然温泉と本格サウナ、佐賀牛を堪能する肉割烹が揃うコンセプトホテル。大型旅館を改装し、居室・サウナ・レストランを備えた「心と身体を整える」空間に生まれ変わった。",
+    hue:30,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/188195/188195.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F188195%2F188195.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"ureshino-kotan",
+    name:"嬉野温泉 枯淡嬉野",
+    region:"佐賀・嬉野温泉",
+    tags:["温泉","和モダン","2025年開業"],
+    category:["温泉付き客室"],
+    price:79200,
+    rating:4.5,
+    built:2025,
+    rooms:18,
+    renovated:null,
+    coord:"33.1333° N, 130.0833° E",
+    access:"嬉野温泉駅より車で約7分／嬉野バスセンターから徒歩1分",
+    desc:"2025年秋開業。全18室の和モダン空間で、嬉野の温泉とお茶を愉しむ静寂のリトリート宿。スイート客室にはプレミアムラウンジの利用特典が付く。",
+    hue:150,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/197359/197359.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F197359%2F197359.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"enowa-yufuin",
+    name:"ENOWA YUFUIN",
+    region:"大分・湯布院",
+    tags:["インフィニティプール","温泉","美食オーベルジュ"],
+    category:["温泉付き客室","プライベートプール"],
+    price:144600,
+    rating:4.7,
+    built:2023,
+    rooms:19,
+    renovated:null,
+    coord:"33.2644° N, 131.3572° E",
+    access:"JR由布院駅より車で約5分（送迎あり・要予約）",
+    desc:"「ボタニカル・リトリート」がコンセプトのラグジュアリーオーベルジュ。丘の頂のヴィラにはインフィニティプールと露天風呂を完備し、天空のサウナから雲海や星空を望める。ミシュランキー2年連続獲得。",
+    hue:118,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/187963/187963.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F187963%2F187963.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"hoshinoya-kyoto",
+    name:"星のや京都",
+    region:"京都・嵐山",
+    tags:["嵐山","専用船アクセス","数寄屋"],
+    category:[],
+    price:140000,
+    rating:4.3,
+    built:null,
+    rooms:25,
+    renovated:null,
+    coord:"35.0094° N, 135.6667° E",
+    access:"京都駅からタクシー約30分＋専用船（渡月橋そばの舟待合より）",
+    desc:"嵐山の景勝地、大堰川の河畔に佇む数寄屋の宿。渡月橋から専用船で向かう非日常のアプローチ。客室にテレビや時計を置かず、四季の景色に身を委ねる滞在を提案する。",
+    hue:96,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/172992/172992.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F172992%2F172992.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"glamday-yomitan",
+    name:"グランディスタイル 沖縄 読谷 ホテル＆リゾート",
+    region:"沖縄・読谷村",
+    tags:["インフィニティプール","13歳以上限定","クラブラウンジ"],
+    category:["ビーチフロント"],
+    price:29790,
+    rating:4.6,
+    built:2024,
+    rooms:54,
+    renovated:2024,
+    coord:"26.4181° N, 127.7269° E",
+    access:"那覇空港から車で約50分",
+    desc:"読谷の高台に浮かぶ、24時間愉しめるインフィニティプールが名物の大人限定（13歳以上）リゾート。3つのコンセプトラウンジと50平米以上の客室で、時間に縛られない贅沢な休日を。",
+    hue:178,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/172439/172439.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F172439%2F172439.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"ando-hotel-nara",
+    name:"ANDO HOTEL 奈良若草山",
+    region:"奈良市",
+    tags:["絶景夜景","屋上露天風呂","サウナ付スイート"],
+    category:["温泉付き客室","サウナ付き客室"],
+    price:31600,
+    rating:4.3,
+    built:2020,
+    rooms:21,
+    renovated:null,
+    coord:"34.6919° N, 135.8461° E",
+    access:"近鉄奈良駅・JR奈良駅より車で10〜20分（無料送迎あり）",
+    desc:"若草山の中腹、約50年の旅館を継承し2020年にリノベーション。東大寺や興福寺を見渡すパノラマビューと、屋上の貸切露天風呂、新日本三大夜景が魅力の和食オーベルジュ。",
+    hue:18,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/8045/8045.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F8045%2F8045.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"kitakobushi-shiretoko",
+    name:"北こぶし知床 ホテル＆リゾート",
+    region:"北海道・知床/ウトロ",
+    tags:["オーシャンビュー","温泉","2種のサウナ"],
+    category:["温泉付き客室","サウナ付き客室"],
+    price:28210,
+    rating:4.4,
+    built:null,
+    rooms:null,
+    renovated:null,
+    coord:"44.0708° N, 144.8386° E",
+    access:"JR知床斜里駅よりバス50分、ウトロ温泉バスターミナル下車徒歩5分",
+    desc:"世界遺産・知床を望むオールインクルーシブリゾート。流氷をイメージしたサウナ「KAKUUNA」など2種のサウナと、オホーツク海を一望する温泉が名物。",
+    hue:200,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/8312/8312.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F8312%2F8312.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"chalet-ivy-jozankei",
+    name:"シャレーアイビー定山渓",
+    region:"北海道・定山渓温泉",
+    tags:["全室プライベート温泉","スモールラグジュアリー","和洋会席"],
+    category:["温泉付き客室"],
+    price:147955,
+    rating:4.5,
+    built:2019,
+    rooms:26,
+    renovated:null,
+    coord:"42.9200° N, 141.1136° E",
+    access:"新千歳空港より車で約80分",
+    desc:"定山渓の山間に佇む隠れ宿。全26室すべてが67〜137平米のプライベート温泉付きスイートで、日本料理レストランでの会席料理と、内風呂・半露天・サウナを備えた大浴場が楽しめる。",
+    hue:210,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/176809/176809.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F176809%2F176809.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"lakeview-toya",
+    name:"ザ レイクビュー TOYA 乃の風リゾート",
+    region:"北海道・洞爺湖",
+    tags:["全室レイクビュー","天空露天風呂","花火の眺望"],
+    category:["温泉付き客室"],
+    price:47888,
+    rating:4.4,
+    built:null,
+    rooms:164,
+    renovated:null,
+    coord:"42.5764° N, 140.8419° E",
+    access:"JR洞爺駅より車で約15分",
+    desc:"全室レイクビューの温泉リゾート。最上階の天空露天風呂「TENQOO」から洞爺湖・中島・羊蹄山を一望でき、例年4〜10月はロングラン花火大会の眺望も楽しめる。",
+    hue:206,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/139962/139962.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F139962%2F139962.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"kaho-koshinosato",
+    name:"白玉の湯華鳳 別邸越の里",
+    region:"新潟・月岡温泉",
+    tags:["オールスイート","露天風呂付客室","里山の景観"],
+    category:["温泉付き客室"],
+    price:85140,
+    rating:4.6,
+    built:null,
+    rooms:20,
+    renovated:null,
+    coord:"37.9319° N, 139.3689° E",
+    access:"JR新潟駅より月岡温泉行き路線バスあり（約50分）",
+    desc:"全20室、趣の異なる設えのオールスイート旅館。フロアごとにコンセプトが異なり、露天風呂付きスイートから静かな里山の風景を望める。新潟の食材を活かした会席料理も評判。",
+    hue:140,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/136986/136986.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F136986%2F136986.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"inatorisou",
+    name:"海一望絶景の宿 いなとり荘",
+    region:"静岡・伊豆稲取温泉",
+    tags:["全室オーシャンビュー","絶景露天風呂","金目鯛"],
+    category:["温泉付き客室"],
+    price:30800,
+    rating:4.4,
+    built:null,
+    rooms:57,
+    renovated:null,
+    coord:"34.8697° N, 139.1275° E",
+    access:"伊豆稲取駅より送迎バスで約5分",
+    desc:"大海原を望む全室オーシャンビューの宿。男女入替制の絶景露天風呂「蒼空-Sora-」や貸切風呂で湯めぐりを楽しみ、名物のふわふわ金目鯛煮付けを味わう。",
+    hue:8,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/30928/30928.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F30928%2F30928.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"izusan-karaku",
+    name:"熱海・伊豆山 佳ら久",
+    region:"静岡・熱海",
+    tags:["全室温泉露天風呂","相模湾ビュー","ミシュランキー"],
+    category:["温泉付き客室"],
+    price:84000,
+    rating:4.5,
+    built:2023,
+    rooms:57,
+    renovated:null,
+    coord:"35.1127° N, 139.0847° E",
+    access:"JR熱海駅より車で約7分（送迎あり・要予約）",
+    desc:"2023年12月開業。全57室すべてに温泉露天風呂を備え、相模湾の海景を望む。熱海で唯一のミシュランキー（24・25年連続）選出ホテル。",
+    hue:14,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/197470/197470.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F197470%2F197470.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"hiramatsu-karuizawa",
+    name:"THE HIRAMATSU 軽井沢 御代田",
+    region:"長野・御代田",
+    tags:["森のグラン・オーベルジュ","半露天温泉","仏伊料理"],
+    category:["温泉付き客室"],
+    price:83200,
+    rating:4.5,
+    built:null,
+    rooms:37,
+    renovated:null,
+    coord:"36.3389° N, 138.4986° E",
+    access:"上信越自動車道「佐久IC」から車で20分／北陸新幹線「佐久平駅」から車で25分",
+    desc:"浅間山麓の森に佇む「森のグラン・オーベルジュ」。全37室（本館28室＋ヴィラ9棟）すべて70平米以上で、半露天の温泉風呂を完備。フランス料理とイタリア料理のレストランを併設。",
+    hue:132,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/181982/181982.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F181982%2F181982.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"mikaharaonsen-shoho",
+    name:"信州松本 美ヶ原温泉 翔峰",
+    region:"長野・美ヶ原温泉",
+    tags:["北アルプス絶景","展望風呂","大浴場サウナ"],
+    category:["温泉付き客室","サウナ付き客室"],
+    price:45000,
+    rating:4.2,
+    built:null,
+    rooms:null,
+    renovated:2018,
+    coord:"36.2380° N, 137.9967° E",
+    access:"JR松本駅より美ヶ原温泉行きバスで約20分",
+    desc:"松本の奥座敷、美ヶ原温泉の高台に立つ宿。2018年に誕生した展望風呂「美しの湯」からは北アルプスと松本の街並みを一望。大浴場にはジャグジーやサウナも備える。",
+    hue:220,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/38930/38930.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F38930%2F38930.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"fufu-nara",
+    name:"ふふ 奈良",
+    region:"奈良市",
+    tags:["奈良公園","客室露天風呂","スモールラグジュアリー"],
+    category:["温泉付き客室"],
+    price:91080,
+    rating:4.7,
+    built:null,
+    rooms:null,
+    renovated:null,
+    coord:"34.6789° N, 135.8394° E",
+    access:"近鉄奈良駅より約1.3km",
+    desc:"奈良公園の一角、庭園の木々に囲まれたスモールラグジュアリーリゾート。神聖さと懐かしさを併せ持つ空間で、客室露天風呂につかりながらゆったりとした時間を過ごせる。",
+    hue:36,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/179808/179808.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F179808%2F179808.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"amahara",
+    name:"夢泉景別荘 天原",
+    region:"兵庫・淡路島/洲本温泉",
+    tags:["全室専有露天風呂","海辺の別荘","ミシュランガイド掲載"],
+    category:["温泉付き客室","ビーチフロント"],
+    price:79200,
+    rating:null,
+    built:null,
+    rooms:18,
+    renovated:null,
+    coord:"34.3428° N, 134.9006° E",
+    access:"洲本ICから車で約15分",
+    desc:"「古事記」の高天原に名を由来する、全18室の海辺の別荘。全室に洲本温泉を使用した専有露天風呂を備え、瀬戸内海を望みながらゆるやかな島時間を過ごせる。ミシュランガイド5レッドパビリオン獲得。",
+    hue:194,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/75314/75314.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F75314%2F75314.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"ento-oki",
+    name:"Entô",
+    region:"島根・隠岐諸島/海士町",
+    tags:["隠岐諸島","デザインホテル","海一望"],
+    category:[],
+    price:null,
+    rating:null,
+    built:null,
+    rooms:36,
+    renovated:null,
+    coord:"36.0989° N, 133.0872° E",
+    access:"中ノ島・海士町「菱浦港」より徒歩約3分",
+    desc:"隠岐諸島・中ノ島に佇むデザインホテル。海を望む客室やバスルーム、プライベートテラスを備え、島前を巡る滞在の拠点となる。コンシェルジュが旅程づくりもサポート。",
+    hue:204,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/18535/18535.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F18535%2F18535.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"senomoto-kogen",
+    name:"黒川温泉 瀬の本高原ホテル",
+    region:"熊本・黒川温泉/瀬の本高原",
+    tags:["阿蘇の絶景","露天風呂","高原リゾート"],
+    category:["温泉付き客室"],
+    price:22600,
+    rating:4.32,
+    built:null,
+    rooms:70,
+    renovated:null,
+    coord:"33.0928° N, 131.1783° E",
+    access:"熊本空港より九州横断バスで「瀬の本」下車徒歩約10分",
+    desc:"標高920メートル、阿蘇五岳を一望する高原の温泉ホテル。展望大浴場と露天風呂「絶景の湯」から、雲海や満天の星空まで刻々と変わる阿蘇の表情を楽しめる。",
+    hue:90,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/37963/37963.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F37963%2F37963.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"kanigoten",
+    name:"太良嶽温泉ホテル 蟹御殿",
+    region:"佐賀・太良町",
+    tags:["有明海一望","竹崎かに会席","サウナ"],
+    category:["温泉付き客室","サウナ付き客室"],
+    price:77000,
+    rating:4.65,
+    built:null,
+    rooms:18,
+    renovated:2022,
+    coord:"32.9861° N, 130.1994° E",
+    access:"長崎本線 肥前大浦駅より無料送迎あり（要予約）",
+    desc:"有明海と雲仙普賢岳を望む屋上展望露天風呂が名物の温泉旅館。2022年にリニューアルしたフルオーシャンビューのサウナ施設も充実。名物は濃厚な竹崎かに会席。",
+    hue:170,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/53097/53097.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F53097%2F53097.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+  {
+    id:"risonare-kohama",
+    name:"リゾナーレ小浜島",
+    region:"沖縄・小浜島",
+    tags:["ビーチリゾート","珊瑚礁","ファミリーサービス"],
+    category:["ビーチフロント"],
+    price:33280,
+    rating:4.3,
+    built:null,
+    rooms:60,
+    renovated:null,
+    coord:"24.3181° N, 124.2011° E",
+    access:"石垣港離島ターミナルから高速船25分＋シャトルバス10分",
+    desc:"コバルトブルーの海と白砂に囲まれた離島ビーチリゾート。世界有数の珊瑚の海が目の前に広がり、離島ならではのアクティビティや家族向けサービスも充実。",
+    hue:186,
+    hero:"https://trvimg.r10s.jp/share/HOTEL/178403/178403.jpg",
+    photoUrls:{},
+    photos:["施設外観・全景"],
+    bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F178403%2F178403.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
+  },
+];
+
+const FILTERS = ['すべて','ビーチフロント','プライベートプール','温泉付き客室','サウナ付き客室','シティホテル'];
+let activeTag = 'すべて';
+let favorites = new Set();
+
+// 外部画像を使わず、ホテルごとの色味からグラデーション「写真」を生成する
+function grainDataUri(){
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(#n)' opacity='0.35'/></svg>`;
+  return `url('data:image/svg+xml,${encodeURIComponent(svg)}')`;
+}
+const GRAIN_URI = grainDataUri();
+
+function artStyle(hue, index, total){
+  const h1 = (hue + index*9) % 360;
+  const h2 = (hue + 34 + index*6) % 360;
+  const light1 = 30 + (index % 3) * 6;
+  const light2 = 14 + ((index+1) % 3) * 5;
+  const angle = 120 + index*22;
+  return `--grain:${GRAIN_URI}; background:` +
+    `linear-gradient(${angle}deg, hsl(${h1} 46% ${light1}%), hsl(${h2} 40% ${light2}%));`;
+}
+
+function artHTML(h, index, caption, showIdx){
+  const idxTag = showIdx ? `<span class="frame-idx">${String(index+1).padStart(2,'0')} / ${String(h.photos.length).padStart(2,'0')}</span>` : '';
+  const realUrl = (index===0 && h.hero) ? h.hero : (h.photoUrls && h.photoUrls[index]);
+  const photoTag = realUrl
+    ? `<img class="frame-photo" loading="lazy" alt="${h.name}" src="${realUrl}" onerror="this.remove()">`
+    : '';
+  return `<div class="frame-art" style="${artStyle(h.hue, index, h.photos.length)}">
+      ${photoTag}
+      <span class="frame-cap mono">${caption}</span>${idxTag}
+    </div>`;
+}
+
+function yen(n){ return (n===null || n===undefined) ? '要問合せ' : '¥' + n.toLocaleString('ja-JP'); }
+
+function parseCoord(str){
+  const m = str.match(/(-?\d+\.?\d*)°\s*([NS]),\s*(-?\d+\.?\d*)°\s*([EW])/);
+  if(!m) return null;
+  const lat = parseFloat(m[1]) * (m[2]==='S' ? -1 : 1);
+  const lng = parseFloat(m[3]) * (m[4]==='W' ? -1 : 1);
+  return { lat, lng };
+}
+function dash(v, unit){ return (v===null || v===undefined) ? '-' : v + (unit||''); }
+
+function scrollGallery(btn, dir){
+  const wrap = btn.closest('.gallery-wrap');
+  const gallery = wrap.querySelector('.gallery');
+  const frame = wrap.querySelector('.frame');
+  const step = frame ? frame.offsetWidth * 0.9 : 260;
+  gallery.scrollBy({ left: dir * step, behavior: 'smooth' });
+}
+
+function scrollFilters(dir){
+  const el = document.getElementById('filters');
+  el.scrollBy({ left: dir * 160, behavior: 'smooth' });
+}
+
+function heartIcon(){
+  return `<svg viewBox="0 0 24 24"><path d="M12 20 C6 15 2 11.5 2 7.8 C2 4.9 4.3 3 6.9 3 C8.7 3 10.4 4 12 6 C13.6 4 15.3 3 17.1 3 C19.7 3 22 4.9 22 7.8 C22 11.5 18 15 12 20 Z"/></svg>`;
+}
+
+function renderFilters(){
+  const el = document.getElementById('filters');
+  el.innerHTML = FILTERS.map(t=>`<button class="chip ${t===activeTag?'active':''}" onclick="setTag('${t}')">${t}</button>`).join('');
+}
+function setTag(t){ activeTag = t; renderFilters(); renderFeed(); }
+
+function renderFeed(){
+  const list = HOTELS.filter(h => activeTag==='すべて' || (h.category && h.category.includes(activeTag)));
+  document.getElementById('cardList').innerHTML = list.map(h => cardHTML(h)).join('');
+}
+
+function cardHTML(h){
+  const isFav = favorites.has(h.id);
+  return `
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <div class="card-name serif" onclick="openModal('${h.id}')">${h.name}</div>
+        <div class="card-loc mono">${h.region}<span class="dot">·</span>${h.tags[0]}</div>
+      </div>
+      <button class="stamp ${isFav?'active':''}" onclick="toggleFav('${h.id}', event)">${heartIcon()}</button>
+    </div>
+    <div class="gallery-wrap">
+      <button class="gallery-arrow left" onclick="scrollGallery(this,-1)" aria-label="前の写真">
+        <svg viewBox="0 0 10 10"><polygon points="8,0 8,10 0,5"/></svg>
+      </button>
+      <div class="gallery">
+        ${h.photos.map((cap,i)=>`
+          <div class="frame">
+            ${artHTML(h, i, cap, true)}
+          </div>`).join('')}
+      </div>
+      <button class="gallery-arrow right" onclick="scrollGallery(this,1)" aria-label="次の写真">
+        <svg viewBox="0 0 10 10"><polygon points="2,0 2,10 10,5"/></svg>
+      </button>
+    </div>
+    <div class="card-foot">
+      <div>
+        <span class="price">${yen(h.price)}<span class="from">〜 / 泊</span></span>
+        <span class="rating">★ <b>${dash(h.rating)}</b></span>
+      </div>
+      <a class="detail-link" onclick="openModal('${h.id}')">詳細を見る →</a>
+    </div>
+  </article>`;
+}
+
+function toggleFav(id, e){
+  if(e) e.stopPropagation();
+  if(favorites.has(id)) favorites.delete(id); else favorites.add(id);
+  document.getElementById('favCount').textContent = favorites.size;
+  renderFeed();
+  if(document.getElementById('overlay').classList.contains('open')) openModal(id, true);
+  if(document.getElementById('comparePage').style.display !== 'none') renderCompare();
+}
+
+function openModal(id, silent){
+  const h = HOTELS.find(x=>x.id===id);
+  const isFav = favorites.has(id);
+  document.getElementById('modalContent').innerHTML = `
+    <div class="modal-hero">
+      ${artHTML(h, 0, h.photos[0], false)}
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-eyebrow mono">${h.tags.join(' / ')}</div>
+      <div class="modal-title serif">${h.name}</div>
+      <div class="modal-loc mono">${h.region}</div>
+      <p class="modal-desc">${h.desc}</p>
+      <div class="tag-row">${h.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+      <div class="stat-row">
+        <div class="stat"><div class="v">${yen(h.price)}</div><div class="l">最安値 / 泊</div></div>
+        <div class="stat"><div class="v">★ ${dash(h.rating)}</div><div class="l">評価</div></div>
+        <div class="stat"><div class="v">${dash(h.built,'年')}</div><div class="l">オープン年</div></div>
+      </div>
+      <div class="map-box">
+        ${(() => {
+          const p = parseCoord(h.coord);
+          return p
+            ? `<iframe src="https://www.google.com/maps?q=${p.lat},${p.lng}&z=9&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`
+            : '';
+        })()}
+        <div class="map-coord">${h.coord}</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost ${isFav?'active':''}" onclick="toggleFav('${h.id}')" aria-label="お気に入り登録">${heartIcon()}</button>
+        <a class="btn btn-primary" target="_blank" rel="noopener" href="${h.bookingUrl || ('https://travel.rakuten.co.jp/dsearch/?f_keyword=' + encodeURIComponent(h.name+' '+h.region))}">楽天トラベルで空室確認 ↗</a>
+      </div>
+    </div>`;
+  document.getElementById('overlay').classList.add('open');
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+document.getElementById('overlay').addEventListener('click', (e)=>{ if(e.target.id==='overlay') closeModal(); });
+
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  document.getElementById('feedPage').style.display = tab==='feed' ? 'block' : 'none';
+  document.getElementById('filters').style.display = tab==='feed' ? 'flex' : 'none';
+  document.getElementById('comparePage').style.display = tab==='compare' ? 'block' : 'none';
+  if(tab==='compare') renderCompare();
+}
+
+function renderCompare(){
+  const list = HOTELS.filter(h=>favorites.has(h.id));
+  const wrap = document.getElementById('comparePage');
+  if(list.length===0){
+    wrap.innerHTML = `
+      <div class="compare-head">
+        <h1 class="serif">比較する</h1>
+        <p>お気に入りに登録したホテルを、料金・評価・オープン年などで見比べられます。</p>
+      </div>
+      <div class="empty">
+        <div class="ico">◇</div>
+        <p>まだお気に入りがありません。気になるホテルの<br class="br">スタンプボタンを押して追加してください。</p>
+        <button onclick="switchTab('feed')">ホームへ戻る</button>
+      </div>`;
+    return;
+  }
+  const knownPrices = list.map(h=>h.price).filter(p => p !== null && p !== undefined);
+  const minPrice = knownPrices.length ? Math.min(...knownPrices) : null;
+  wrap.innerHTML = `
+    <div class="compare-head">
+      <h1 class="serif">比較する</h1>
+      <p>${list.length}件のホテルを比較中。最安値には ◆ が付きます。</p>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th style="position:sticky;left:0;background:var(--void-2);">項目</th>
+          ${list.map(h=>`<th class="th-photo">${artHTML(h, 0, '', false)}</th>`).join('')}
+        </tr></thead>
+        <tbody>
+          <tr><th>ホテル名</th>${list.map(h=>`<td class="th-name">${h.name}<div class="loc">${h.region}</div></td>`).join('')}</tr>
+          <tr><th>最安値 / 泊</th>${list.map(h=>`<td class="price-cell ${(h.price!==null && h.price===minPrice)?'best':''}">${yen(h.price)}</td>`).join('')}</tr>
+          <tr><th>評価</th>${list.map(h=>`<td>★ ${dash(h.rating)}</td>`).join('')}</tr>
+          <tr><th>オープン年</th>${list.map(h=>`<td class="mono">${dash(h.built,'年')}</td>`).join('')}</tr>
+          <tr><th>リニューアル</th>${list.map(h=>`<td class="mono">${h.renovated ? h.renovated+'年' : '-'}</td>`).join('')}</tr>
+          <tr><th>総部屋数</th>${list.map(h=>`<td class="mono">${dash(h.rooms,'室')}</td>`).join('')}</tr>
+          <tr><th>アクセス</th>${list.map(h=>`<td>${h.access}</td>`).join('')}</tr>
+          <tr><th>タイプ</th>${list.map(h=>`<td>${h.tags[0]}</td>`).join('')}</tr>
+          <tr><th>予約</th>${list.map(h=>`<td><a class="book-btn" target="_blank" rel="noopener" href="${h.bookingUrl || ('https://travel.rakuten.co.jp/dsearch/?f_keyword=' + encodeURIComponent(h.name+' '+h.region))}">楽天トラベルで見る ↗</a></td>`).join('')}</tr>
+          <tr><th>操作</th>${list.map(h=>`<td><button class="remove-btn" onclick="toggleFav('${h.id}')">お気に入り解除</button></td>`).join('')}</tr>
+        </tbody>
+      </table>
+    </div>`;
+}
+
+renderFilters();
+renderFeed();
+</script>
+</body>
+</html>
