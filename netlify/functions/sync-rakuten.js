@@ -4,6 +4,14 @@
 
 const { getStore } = require("@netlify/blobs");
 
+function getHotelStore() {
+  return getStore({
+    name: "hotel-data",
+    siteID: process.env.NETLIFY_SITE_ID,
+    token: process.env.NETLIFY_API_TOKEN,
+  });
+}
+
 // サイトに掲載している全ホテルの「内部ID」と「楽天のホテル番号(hotelNo)」の対応表
 const HOTEL_MAP = [
   ["ryukyu-nashiro", 183412],
@@ -75,7 +83,7 @@ exports.handler = async function () {
     return { statusCode: 500, body: "環境変数が未設定です" };
   }
 
-  const store = getStore("hotel-data");
+  const store = getHotelStore();
   const result = {};
   const errors = [];
 
