@@ -412,8 +412,8 @@ const HOTELS = [
     desc:"2023年12月グランドオープン。武雄の天然温泉と本格サウナ、佐賀牛を堪能する肉割烹が揃うコンセプトホテル。大型旅館を改装し、居室・サウナ・レストランを備えた「心と身体を整える」空間に生まれ変わった。",
     hue:30,
     hero:"https://trvimg.r10s.jp/share/HOTEL/188195/188195.jpg",
-    photoUrls:{},
-    photos:["施設外観・全景"],
+    photoUrls:{2:"https://trvimg.r10s.jp/share/image_up/188195/LARGE/4f8d17c345b9666b6276ef4eb208bede766d25c7.47.9.26.3.jpg",3:"https://trvimg.r10s.jp/share/image_up/188195/LARGE/9a84ea3387942dbe6efba92bf9cdf265a1a5e03c.47.9.26.3.jpg",4:"https://trvimg.r10s.jp/share/image_up/188195/LARGE/6af0567f149c2ad90db059549f229a0d61b64b39.47.9.26.3.jpg"},
+    photos:["施設外観・全景","施設・全景","ラグジュアリー サウナ付き洋室","デラックス サウナ付きツイン","スタンダードツイン"],
     bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F188195%2F188195.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
   },
   {
@@ -422,7 +422,7 @@ const HOTELS = [
     region:"佐賀・嬉野温泉",
     tags:["温泉","和モダン","2025年開業"],
     category:["温泉付き客室"],
-    price:79200,
+    price:33400,
     rating:4.5,
     built:2025,
     rooms:18,
@@ -432,8 +432,8 @@ const HOTELS = [
     desc:"2025年秋開業。全18室の和モダン空間で、嬉野の温泉とお茶を愉しむ静寂のリトリート宿。スイート客室にはプレミアムラウンジの利用特典が付く。",
     hue:150,
     hero:"https://trvimg.r10s.jp/share/HOTEL/197359/197359.jpg",
-    photoUrls:{},
-    photos:["施設外観・全景"],
+    photoUrls:{2:"https://trvimg.r10s.jp/share/image_up/197359/LARGE/b5397a0b497b1e2fd49f6c45ea3cae779e08d8d1.47.9.26.3.jpg",3:"https://trvimg.r10s.jp/share/image_up/197359/LARGE/fca4f98ef0d4cb19bd3285723431deeafbbd0064.47.9.26.3.jpg",4:"https://trvimg.r10s.jp/share/image_up/197359/LARGE/c9ea4a58d19846ce948f6f680cb8457cbf9d7d6b.47.9.26.3.jpg"},
+    photos:["施設外観・全景","施設・全景","ラグジュアリー コーナースイート","エグゼクティブ サウナスイート","スタンダードツイン"],
     bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F197359%2F197359.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
   },
   {
@@ -452,8 +452,8 @@ const HOTELS = [
     desc:"「ボタニカル・リトリート」がコンセプトのラグジュアリーオーベルジュ。丘の頂のヴィラにはインフィニティプールと露天風呂を完備し、天空のサウナから雲海や星空を望める。ミシュランキー2年連続獲得。",
     hue:118,
     hero:"https://trvimg.r10s.jp/share/HOTEL/187963/187963.jpg",
-    photoUrls:{},
-    photos:["施設外観・全景"],
+    photoUrls:{2:"https://trvimg.r10s.jp/share/image_up/187963/LARGE/3902ab6fc3b7c8285be2db46f9aee9e39cb810dc.47.9.26.3.jpg",3:"https://trvimg.r10s.jp/share/image_up/187963/LARGE/208c1089d24196433290404edd265f6f56325f69.47.9.26.3.jpg",4:"https://trvimg.r10s.jp/share/image_up/187963/LARGE/5b3ed9a0055620de2558fdb6a81e6346212a68b6.47.9.26.3.jpg"},
+    photos:["施設外観・全景","施設・全景","フォレストサイドヴィラ","ザ・ルームス（半露天風呂付）","ヒルトップ スカイヴィラ"],
     bookingUrl:"https://hb.afl.rakuten.co.jp/hgc/55e4db90.fb064dde.55e4db91.9843cecb/?pc=https%3A%2F%2Ftravel.rakuten.co.jp%2FHOTEL%2F187963%2F187963.html&link_type=hybrid_url&ut=eyJwYWdlIjoidXJsIiwidHlwZSI6Imh5YnJpZF91cmwiLCJjb2wiOjF9",
   },
   {
@@ -1007,6 +1007,31 @@ function renderCompare(){
 
 renderFilters();
 renderFeed();
+
+// 起動時に、裏側で自動収集された最新データ（価格・評価・代表写真）を取得して上書きする。
+// 失敗しても、あらかじめ埋め込まれているデータでそのまま表示され続けるので安全。
+(async function syncLiveData(){
+  try {
+    const res = await fetch('/.netlify/functions/get-hotels');
+    if(!res.ok) return;
+    const data = await res.json();
+    if(!data || !data.hotels) return;
+    let changed = false;
+    HOTELS.forEach(h => {
+      const live = data.hotels[h.id];
+      if(!live || live.error) return;
+      if(typeof live.price === 'number') h.price = live.price;
+      if(typeof live.rating === 'number') h.rating = Math.round(live.rating*10)/10;
+      if(live.hero) h.hero = live.hero;
+      if(live.access) h.access = live.access;
+      changed = true;
+    });
+    if(changed){ renderFeed(); }
+  } catch(err){
+    // ネットワークエラー等は無視し、埋め込みデータのまま表示を続ける
+    console.warn('live data sync skipped:', err);
+  }
+})();
 </script>
 </body>
 </html>
