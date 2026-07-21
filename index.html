@@ -6,6 +6,8 @@
 <title>DESTINA — 写真でめぐる、最高のホテル体験</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,450;0,9..144,600;0,9..144,900;1,9..144,450&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
   :root{
     --void:#0F1210;
@@ -87,11 +89,57 @@
   }
   .chip.active{ background:var(--paper); color:var(--void); border-color:var(--paper); }
 
+  .sort-wrap{
+    display:flex; align-items:center; justify-content:flex-end; gap:8px;
+    max-width:640px; margin:0 auto; padding:2px 12px 0; position:relative;
+  }
+  .pref-filter{ position:relative; }
+  .pref-filter-btn{
+    background:var(--void-2); color:var(--paper); border:1px solid var(--line);
+    border-radius:999px; padding:7px 16px; font-size:12px; font-family:inherit;
+    display:flex; align-items:center; gap:6px; transition:border-color .2s ease;
+  }
+  .pref-filter-btn::after{
+    content:''; width:0; height:0; margin-left:2px;
+    border-left:4px solid transparent; border-right:4px solid transparent;
+    border-top:5px solid var(--stone);
+  }
+  .pref-filter-btn.active{ border-color:var(--brass); color:var(--brass); }
+  .pref-filter-btn.active::after{ border-top-color:var(--brass); }
+  .pref-panel{
+    display:none; position:absolute; top:calc(100% + 8px); right:0; z-index:50;
+    width:240px; max-height:320px; overflow-y:auto;
+    background:var(--void-2); border:1px solid var(--line); border-radius:14px;
+    box-shadow:0 12px 32px rgba(0,0,0,0.45); padding:10px;
+  }
+  .pref-panel.open{ display:block; }
+  .pref-panel-head{
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:10.5px; color:var(--stone); letter-spacing:0.03em;
+    padding:2px 4px 8px; border-bottom:1px solid var(--line-soft); margin-bottom:6px;
+  }
+  .pref-panel-clear{ color:var(--clay); font-size:10.5px; }
+  .pref-panel-clear:hover{ color:var(--brass); }
+  .pref-panel-list{ display:flex; flex-direction:column; }
+  .pref-item{
+    display:flex; align-items:center; gap:9px; padding:7px 6px; border-radius:8px;
+    font-size:12.5px; transition:background .15s ease;
+  }
+  .pref-item:hover{ background:rgba(246,243,236,0.05); }
+  .pref-item .box{
+    flex:none; width:15px; height:15px; border-radius:4px; border:1.5px solid var(--line);
+    display:flex; align-items:center; justify-content:center; transition:all .15s ease;
+  }
+  .pref-item.checked .box{ background:var(--brass); border-color:var(--brass); }
+  .pref-item.checked .box::after{ content:'✓'; font-size:10px; color:var(--void); line-height:1; }
+  .pref-item .cnt{ margin-left:auto; font-size:10px; color:var(--stone); font-family:'IBM Plex Mono',monospace; }
+
   /* ---------- feed ---------- */
   .feed{ max-width:640px; margin:0 auto; padding:16px 20px 80px; }
 
   @media (min-width:880px){
     .filters-wrap{ max-width:1180px; }
+    .sort-wrap{ max-width:1180px; }
     .feed{ max-width:1180px; }
     #cardList{ display:grid; grid-template-columns:1fr 1fr; column-gap:40px; row-gap:8px; }
     .card{ margin-bottom:52px; }
@@ -188,7 +236,7 @@
   /* ---------- modal ---------- */
   .overlay{
     position:fixed; inset:0; background:rgba(8,9,8,0.72); backdrop-filter:blur(4px);
-    z-index:100; display:none; align-items:flex-end; justify-content:center;
+    z-index:2000; display:none; align-items:flex-end; justify-content:center;
   }
   .overlay.open{ display:flex; }
   .modal{
@@ -253,15 +301,61 @@
   .empty p{ color:var(--stone); font-size:13px; margin:0 0 18px; }
   .empty button{ background:var(--paper); color:var(--void); border:none; padding:11px 22px; border-radius:999px; font-size:12.5px; }
 
+  /* ---------- map view ---------- */
+  .map-wrap{ max-width:1180px; margin:0 auto; padding:28px 20px 80px; }
+  #favMap{
+    width:100%; height:70vh; min-height:420px; border-radius:16px;
+    border:1px solid var(--line-soft); background:var(--void-2); overflow:hidden;
+  }
+  .leaflet-popup-content-wrapper{
+    background:var(--void-2); color:var(--paper); border-radius:12px;
+    border:1px solid var(--line); box-shadow:0 8px 28px rgba(0,0,0,0.4);
+  }
+  .leaflet-popup-content{ margin:0; width:200px !important; }
+  .leaflet-popup-tip{ background:var(--void-2); }
+  .leaflet-container a.leaflet-popup-close-button{ color:var(--stone); }
+  .map-pop{ display:flex; flex-direction:column; }
+  .map-pop-photo{ width:100%; height:110px; border-radius:12px 12px 0 0; overflow:hidden; position:relative; }
+  .map-pop-photo img{ width:100%; height:100%; object-fit:cover; display:block; position:relative; z-index:1; }
+  .map-pop-body{ padding:10px 12px 12px; }
+  .map-pop-name{ font-family:'Fraunces',serif; font-size:14px; margin-bottom:3px; cursor:pointer; }
+  .map-pop-name:hover{ color:var(--brass); }
+  .map-pop-loc{ font-size:10px; color:var(--stone); font-family:'IBM Plex Mono',monospace; margin-bottom:6px; }
+  .map-pop-price{ font-family:'IBM Plex Mono',monospace; font-size:12.5px; }
+  .leaflet-div-icon.fav-pin{ background:transparent; border:none; }
+  .fav-pin-dot{
+    width:16px; height:16px; border-radius:50% 50% 50% 0; transform:rotate(-45deg);
+    background:var(--clay); border:2px solid var(--paper); box-shadow:0 0 0 4px rgba(182,92,61,0.22);
+  }
+  .map-canvas-wrap{ position:relative; }
+  .map-leader-svg, .map-labels-layer{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  .map-leader-svg{ z-index:410; }
+  .map-labels-layer{ z-index:411; }
+  .map-leader-line{ fill:none; stroke:var(--clay); stroke-width:1.5; stroke-dasharray:4 3; opacity:0.85; }
+  .map-pin-label{
+    position:absolute; transform:translateY(-50%); pointer-events:auto; cursor:pointer;
+    background:linear-gradient(rgba(15,18,16,0.32), rgba(15,18,16,0.32)), var(--clay);
+    color:var(--paper); border:1.5px solid rgba(15,18,16,0.4);
+    border-radius:7px; font-family:'IBM Plex Mono',monospace; font-size:10.5px;
+    padding:4px 9px; white-space:nowrap; max-width:150px; overflow:hidden; text-overflow:ellipsis;
+    box-shadow:0 4px 14px rgba(0,0,0,0.4); transition:background .2s ease, border-color .2s ease;
+  }
+  .map-pin-label:hover{ background:linear-gradient(rgba(15,18,16,0.12), rgba(15,18,16,0.12)), var(--brass); border-color:rgba(15,18,16,0.4); }
+  .map-pin-label.side-left{ left:34px; }
+  .map-pin-label.side-right{ right:34px; }
+
   .table-scroll{ overflow-x:auto; border-radius:12px; border:1px solid var(--line-soft); }
-  table{ border-collapse:collapse; width:100%; min-width:640px; }
-  th,td{ padding:14px 16px; text-align:left; border-bottom:1px solid var(--line-soft); font-size:12.5px; white-space:nowrap; }
-  td.access-cell{ white-space:normal; max-width:230px; min-width:180px; line-height:1.6; word-break:break-word; }
+  table{ border-collapse:collapse; width:100%; min-width:640px; table-layout:fixed; }
+  th,td{ padding:14px 16px; text-align:left; border-bottom:1px solid var(--line-soft); font-size:12.5px; white-space:normal; }
+  tr > *:first-child{ width:110px; white-space:nowrap; }
+  tr > *:not(:first-child){ width:210px; }
+  td.access-cell{ line-height:1.6; word-break:break-word; }
   thead th{ font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--stone); background:var(--void-2); }
   tbody th{ font-size:9.5px; color:var(--stone); font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.08em; background:var(--void-2); position:sticky; left:0; }
-  .th-photo img{ width:96px; height:64px; object-fit:cover; border-radius:6px; display:block; }
-  .th-photo .frame-art{ width:96px; height:64px; border-radius:6px; }
-  .th-name{ font-size:13px; }
+  .th-photo{ text-align:center; }
+  .th-photo img{ width:96px; height:64px; object-fit:cover; border-radius:6px; display:block; margin:0 auto; }
+  .th-photo .frame-art{ width:96px; height:64px; border-radius:6px; margin:0 auto; }
+  .th-name{ font-size:13px; word-break:break-all; overflow-wrap:anywhere; }
   .th-name .loc{ color:var(--stone); font-size:10.5px; margin-top:3px; }
   .price-cell{ font-family:'IBM Plex Mono',monospace; }
   .price-cell.best{ color:var(--brass); font-weight:600; }
@@ -288,6 +382,7 @@
   <div class="tabs">
     <button class="tab-btn active" data-tab="feed" onclick="switchTab('feed')">ホーム</button>
     <button class="tab-btn" data-tab="compare" onclick="switchTab('compare')">比較する<span class="fav-count" id="favCount">0</span></button>
+    <button class="tab-btn" data-tab="map" onclick="switchTab('map')">地図で見る<span class="fav-count" id="mapFavCount">0</span></button>
   </div>
 </nav>
 
@@ -295,6 +390,21 @@
   <button class="filter-arrow" onclick="scrollFilters(-1)" aria-label="フィルターを左へ">‹</button>
   <div class="filters" id="filters"></div>
   <button class="filter-arrow" onclick="scrollFilters(1)" aria-label="フィルターを右へ">›</button>
+</div>
+
+<div class="sort-wrap">
+  <div class="pref-filter" id="prefFilter">
+    <button type="button" class="pref-filter-btn" id="prefFilterBtn" onclick="togglePrefPanel()">
+      都道府県で絞り込み
+    </button>
+    <div class="pref-panel" id="prefPanel">
+      <div class="pref-panel-head">
+        <span>都道府県（複数選択可）</span>
+        <button type="button" class="pref-panel-clear" onclick="clearPrefs()">すべて解除</button>
+      </div>
+      <div class="pref-panel-list" id="prefPanelList"></div>
+    </div>
+  </div>
 </div>
 
 <main id="feedPage" class="feed">
@@ -306,6 +416,8 @@
 </main>
 
 <main id="comparePage" class="compare-wrap" style="display:none;"></main>
+
+<main id="mapPage" class="map-wrap" style="display:none;"></main>
 
 <footer class="credit">
   <div class="mono">DESTINA — PROTOTYPE / 写真はイメージです（ダミー画像を使用）</div>
@@ -818,6 +930,78 @@ const FILTERS = ['すべて','ビーチフロント','プライベートプー�
 let activeTag = 'すべて';
 let favorites = new Set();
 
+// 都道府県の並び順（北海道→沖縄の慣例順）。region欄の表記ゆれに対応するため、
+// 「都道府県・地名」の形式に加えて、区切りが無い場合も先頭一致で判定する。
+const PREF_ORDER = [
+  '北海道','青森','岩手','宮城','秋田','山形','福島',
+  '茨城','栃木','群馬','埼玉','千葉','東京','神奈川',
+  '新潟','富山','石川','福井','山梨','長野',
+  '岐阜','静岡','愛知','三重',
+  '滋賀','京都','大阪','兵庫','奈良','和歌山',
+  '鳥取','島根','岡山','広島','山口',
+  '徳島','香川','愛媛','高知',
+  '福岡','佐賀','長崎','熊本','大分','宮崎','鹿児島','沖縄'
+];
+function getPref(region){
+  if(!region) return 'その他';
+  const head = region.split('・')[0];
+  const found = PREF_ORDER.find(p => head.startsWith(p) || region.startsWith(p));
+  return found || head;
+}
+let activePrefs = new Set();
+
+function togglePrefPanel(){
+  document.getElementById('prefPanel').classList.toggle('open');
+}
+function closePrefPanel(){
+  document.getElementById('prefPanel').classList.remove('open');
+}
+function togglePref(p){
+  if(activePrefs.has(p)) activePrefs.delete(p); else activePrefs.add(p);
+  renderPrefFilter();
+  renderFeed();
+}
+function clearPrefs(){
+  activePrefs.clear();
+  renderPrefFilter();
+  renderFeed();
+}
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('prefFilter');
+  if(wrap && !wrap.contains(e.target)) closePrefPanel();
+});
+
+function renderPrefFilter(){
+  const listEl = document.getElementById('prefPanelList');
+  const btn = document.getElementById('prefFilterBtn');
+  if(!listEl || !btn) return;
+
+  const present = [...new Set(HOTELS.map(h => getPref(h.region)))]
+    .sort((a,b) => PREF_ORDER.indexOf(a) - PREF_ORDER.indexOf(b));
+
+  listEl.innerHTML = present.map(p => {
+    const count = HOTELS.filter(h => getPref(h.region) === p).length;
+    const checked = activePrefs.has(p);
+    return `
+      <div class="pref-item ${checked?'checked':''}" onclick="togglePref('${p}')">
+        <span class="box"></span>
+        <span>${p}</span>
+        <span class="cnt">${count}件</span>
+      </div>`;
+  }).join('');
+
+  if(activePrefs.size === 0){
+    btn.textContent = '都道府県で絞り込み';
+    btn.classList.remove('active');
+  } else if(activePrefs.size === 1){
+    btn.textContent = `${[...activePrefs][0]}`;
+    btn.classList.add('active');
+  } else {
+    btn.textContent = `都道府県（${activePrefs.size}件選択中）`;
+    btn.classList.add('active');
+  }
+}
+
 // 外部画像を使わず、ホテルごとの色味からグラデーション「写真」を生成する
 function grainDataUri(){
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(#n)' opacity='0.35'/></svg>`;
@@ -882,7 +1066,10 @@ function renderFilters(){
 function setTag(t){ activeTag = t; renderFilters(); renderFeed(); }
 
 function renderFeed(){
-  const list = HOTELS.filter(h => activeTag==='すべて' || (h.category && h.category.includes(activeTag)));
+  const list = HOTELS.filter(h =>
+    (activeTag==='すべて' || (h.category && h.category.includes(activeTag))) &&
+    (activePrefs.size===0 || activePrefs.has(getPref(h.region)))
+  );
   document.getElementById('cardList').innerHTML = list.map(h => cardHTML(h)).join('');
 }
 
@@ -925,9 +1112,11 @@ function toggleFav(id, e){
   if(e) e.stopPropagation();
   if(favorites.has(id)) favorites.delete(id); else favorites.add(id);
   document.getElementById('favCount').textContent = favorites.size;
+  document.getElementById('mapFavCount').textContent = favorites.size;
   renderFeed();
   if(document.getElementById('overlay').classList.contains('open')) openModal(id, true);
   if(document.getElementById('comparePage').style.display !== 'none') renderCompare();
+  if(document.getElementById('mapPage').style.display !== 'none') renderMapPage();
 }
 
 function openModal(id, silent){
@@ -973,7 +1162,9 @@ function switchTab(tab){
   document.getElementById('feedPage').style.display = tab==='feed' ? 'block' : 'none';
   document.getElementById('filters').style.display = tab==='feed' ? 'flex' : 'none';
   document.getElementById('comparePage').style.display = tab==='compare' ? 'block' : 'none';
+  document.getElementById('mapPage').style.display = tab==='map' ? 'block' : 'none';
   if(tab==='compare') renderCompare();
+  if(tab==='map') renderMapPage();
 }
 
 function renderCompare(){
@@ -1021,7 +1212,178 @@ function renderCompare(){
     </div>`;
 }
 
+let favMapInstance = null;
+let favMapMarkers = null;
+let favMapPoints = [];
+
+function renderMapPage(){
+  const list = HOTELS.filter(h => favorites.has(h.id));
+  const wrap = document.getElementById('mapPage');
+
+  if(list.length===0){
+    if(favMapInstance){ favMapInstance.remove(); favMapInstance = null; favMapMarkers = null; }
+    favMapPoints = [];
+    wrap.innerHTML = `
+      <div class="compare-head">
+        <h1 class="serif">地図で見る</h1>
+        <p>お気に入りに登録したホテルを、1つの地図の上でまとめて確認できます。ホーム画面でいいねを選択すると、地図に追加されます。</p>
+      </div>
+      <div class="empty">
+        <div class="ico">◇</div>
+        <p>まだお気に入りがありません。気になるホテルの<br class="br">スタンプボタンを押して追加してください。</p>
+        <button onclick="switchTab('feed')">ホームへ戻る</button>
+      </div>`;
+    return;
+  }
+
+  // 地図コンテナが無ければ作る（初回、またはリストが空から復帰した直後）
+  if(!document.getElementById('favMap')){
+    wrap.innerHTML = `
+      <div class="compare-head">
+        <h1 class="serif">地図で見る</h1>
+        <p>${list.length}件のホテルを地図上に表示しています。ピンをタップすると詳細が見られます。ホーム画面でいいねを選択すると、地図に追加されます。</p>
+      </div>
+      <div class="map-canvas-wrap">
+        <div id="favMap"></div>
+        <svg id="mapLeaderLines" class="map-leader-svg"></svg>
+        <div id="mapLabels" class="map-labels-layer"></div>
+      </div>`;
+    if(favMapInstance){ favMapInstance.remove(); favMapInstance = null; favMapMarkers = null; }
+  } else {
+    // 件数表示だけ更新
+    const pEl = wrap.querySelector('.compare-head p');
+    if(pEl) pEl.textContent = `${list.length}件のホテルを地図上に表示しています。ピンをタップすると詳細が見られます。ホーム画面でいいねを選択すると、地図に追加されます。`;
+  }
+
+  const points = list
+    .map(h => ({ h, p: parseCoord(h.coord) }))
+    .filter(x => x.p);
+
+  if(!favMapInstance){
+    favMapInstance = L.map('favMap', { scrollWheelZoom:false });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 18
+    }).addTo(favMapInstance);
+    favMapMarkers = L.layerGroup().addTo(favMapInstance);
+    favMapInstance.on('move zoom', () => layoutFavMapLabels(favMapPoints));
+    window.addEventListener('resize', () => {
+      if(!favMapInstance) return;
+      favMapInstance.invalidateSize();
+      layoutFavMapLabels(favMapPoints);
+    });
+  } else {
+    favMapMarkers.clearLayers();
+  }
+
+  const pinIcon = L.divIcon({
+    className: 'fav-pin',
+    html: '<div class="fav-pin-dot"></div>',
+    iconSize: [16,16],
+    iconAnchor: [8,16]
+  });
+
+  points.forEach(({h, p}) => {
+    const marker = L.marker([p.lat, p.lng], { icon: pinIcon }).addTo(favMapMarkers);
+    const photo = h.hero || '';
+    const popupHtml = `
+      <div class="map-pop">
+        <div class="map-pop-photo" style="${artStyle(h.hue, 0, h.photos.length)}">
+          ${photo ? `<img loading="lazy" alt="${h.name}" src="${photo}" onerror="this.remove()">` : ''}
+        </div>
+        <div class="map-pop-body">
+          <div class="map-pop-name" onclick="closeMapPopupAndOpen('${h.id}')">${h.name}</div>
+          <div class="map-pop-loc">${h.region}</div>
+          <div class="map-pop-price">${yen(h.price)}<span style="color:var(--stone);font-size:10px;"> 〜 / 泊</span></div>
+        </div>
+      </div>`;
+    marker.bindPopup(popupHtml);
+  });
+
+  favMapPoints = points;
+
+  if(points.length){
+    const bounds = L.latLngBounds(points.map(x => [x.p.lat, x.p.lng]));
+    favMapInstance.fitBounds(bounds, { paddingTopLeft:[40,60], paddingBottomRight:[40,40], maxZoom:11 });
+  }
+  layoutFavMapLabels(favMapPoints);
+
+  // display:noneから表示に切り替わった直後はサイズ計算がずれるため、次フレームで補正
+  setTimeout(() => {
+    if(!favMapInstance) return;
+    favMapInstance.invalidateSize();
+    layoutFavMapLabels(favMapPoints);
+  }, 50);
+}
+
+// ピンから地図の外側(左右の余白)へ引き出し線でホテル名ラベルを配置し、
+// 日本地図の上になるべく文字が乗らないようにする
+function layoutFavMapLabels(points){
+  const svg = document.getElementById('mapLeaderLines');
+  const labelsLayer = document.getElementById('mapLabels');
+  if(!svg || !labelsLayer || !favMapInstance) return;
+
+  const rect = favMapInstance.getContainer().getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  if(!W || !H) return;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = '';
+  labelsLayer.innerHTML = '';
+
+  const pts = points.map(({h, p}) => {
+    const cp = favMapInstance.latLngToContainerPoint(L.latLng(p.lat, p.lng));
+    return { h, x: cp.x, y: cp.y };
+  });
+
+  const leftPts = pts.filter(pt => pt.x < W/2).sort((a,b)=>a.y-b.y);
+  const rightPts = pts.filter(pt => pt.x >= W/2).sort((a,b)=>a.y-b.y);
+
+  const MIN_GAP = 28;
+  function assignSlots(list){
+    let lastY = -Infinity;
+    list.forEach(pt => {
+      pt.slotY = Math.max(pt.y, lastY + MIN_GAP);
+      lastY = pt.slotY;
+    });
+    if(list.length){
+      const overflow = list[list.length-1].slotY - (H - 16);
+      if(overflow > 0) list.forEach(pt => pt.slotY -= overflow);
+    }
+    list.forEach(pt => { pt.slotY = Math.max(16, pt.slotY); });
+  }
+  assignSlots(leftPts);
+  assignSlots(rightPts);
+
+  const MARGIN = 34;
+  function renderSide(list, side){
+    list.forEach(pt => {
+      const label = document.createElement('div');
+      label.className = `map-pin-label side-${side}`;
+      label.textContent = pt.h.name;
+      label.style.top = pt.slotY + 'px';
+      label.onclick = () => closeMapPopupAndOpen(pt.h.id);
+      labelsLayer.appendChild(label);
+
+      const w = label.offsetWidth;
+      const anchorX = side === 'left' ? (MARGIN + w) : (W - MARGIN - w);
+      const midX = (anchorX + pt.x) / 2;
+      const line = document.createElementNS('http://www.w3.org/2000/svg','path');
+      line.setAttribute('d', `M ${pt.x} ${pt.y} L ${midX} ${pt.slotY} L ${anchorX} ${pt.slotY}`);
+      line.setAttribute('class', 'map-leader-line');
+      svg.appendChild(line);
+    });
+  }
+  renderSide(leftPts, 'left');
+  renderSide(rightPts, 'right');
+}
+
+function closeMapPopupAndOpen(id){
+  if(favMapInstance) favMapInstance.closePopup();
+  openModal(id);
+}
+
 renderFilters();
+renderPrefFilter();
 renderFeed();
 
 // 起動時に、裏側で自動収集された最新データ（価格・評価・代表写真）を取得して上書きする。
