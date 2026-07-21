@@ -3,9 +3,17 @@
 
 const { getStore } = require("@netlify/blobs");
 
+function getHotelStore() {
+  return getStore({
+    name: "hotel-data",
+    siteID: process.env.NETLIFY_SITE_ID,
+    token: process.env.NETLIFY_API_TOKEN,
+  });
+}
+
 exports.handler = async function () {
   try {
-    const store = getStore("hotel-data");
+    const store = getHotelStore();
     const data = await store.get("latest", { type: "json" });
 
     if (!data) {
