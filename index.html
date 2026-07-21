@@ -256,6 +256,7 @@
   .table-scroll{ overflow-x:auto; border-radius:12px; border:1px solid var(--line-soft); }
   table{ border-collapse:collapse; width:100%; min-width:640px; }
   th,td{ padding:14px 16px; text-align:left; border-bottom:1px solid var(--line-soft); font-size:12.5px; white-space:nowrap; }
+  td.access-cell{ white-space:normal; max-width:230px; min-width:180px; line-height:1.6; word-break:break-word; }
   thead th{ font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--stone); background:var(--void-2); }
   tbody th{ font-size:9.5px; color:var(--stone); font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.08em; background:var(--void-2); position:sticky; left:0; }
   .th-photo img{ width:96px; height:64px; object-fit:cover; border-radius:6px; display:block; }
@@ -996,7 +997,7 @@ function renderCompare(){
           <tr><th>オープン年</th>${list.map(h=>`<td class="mono">${dash(h.built,'年')}</td>`).join('')}</tr>
           <tr><th>リニューアル</th>${list.map(h=>`<td class="mono">${h.renovated ? h.renovated+'年' : '-'}</td>`).join('')}</tr>
           <tr><th>総部屋数</th>${list.map(h=>`<td class="mono">${dash(h.rooms,'室')}</td>`).join('')}</tr>
-          <tr><th>アクセス</th>${list.map(h=>`<td>${h.access}</td>`).join('')}</tr>
+          <tr><th>アクセス</th>${list.map(h=>`<td class="access-cell">${h.access}</td>`).join('')}</tr>
           <tr><th>タイプ</th>${list.map(h=>`<td>${h.tags[0]}</td>`).join('')}</tr>
           <tr><th>予約</th>${list.map(h=>`<td><a class="book-btn" target="_blank" rel="noopener" href="${h.bookingUrl || ('https://travel.rakuten.co.jp/dsearch/?f_keyword=' + encodeURIComponent(h.name+' '+h.region))}">楽天トラベルで見る ↗</a></td>`).join('')}</tr>
           <tr><th>操作</th>${list.map(h=>`<td><button class="remove-btn" onclick="toggleFav('${h.id}')">お気に入り解除</button></td>`).join('')}</tr>
