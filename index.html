@@ -174,6 +174,12 @@
   .occ-count{ font-size:12.5px; min-width:14px; text-align:center; }
   .occ-unit{ font-size:11px; color:var(--stone); white-space:nowrap; }
   .stay-loading{ font-size:11px; color:var(--stone); font-family:'IBM Plex Mono',monospace; padding:2px 4px 10px; letter-spacing:0.02em; }
+  .api-error-banner{
+    background:rgba(182,92,61,0.12); border:1px solid var(--clay); border-radius:12px;
+    padding:14px 16px; margin-bottom:20px; font-size:12.5px; line-height:1.7; color:var(--paper-dim);
+  }
+  .api-error-banner strong{ color:var(--clay); }
+  .api-error-detail{ margin-top:6px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--stone); }
   .stay-hint{ flex:1 1 100%; max-width:none; margin:2px 0 0; padding:0 4px; font-size:10.5px; line-height:1.5; color:var(--stone); text-align:left; }
 
   /* ---------- feed ---------- */
@@ -1098,6 +1104,9 @@ function extractMinCharge(data){
   } catch(e){ return null; }
 }
 
+// APIから返ってきた最新のエラー内容（開発者ツールを開かなくても画面上で理由が分かるように保持する）
+let lastApiError = null;
+
 async function fetchVacancy(hotelNo){
   const key = availabilityKey(hotelNo);
   if(key in availabilityCache) return availabilityCache[key];
@@ -1116,6 +1125,7 @@ async function fetchVacancy(hotelNo){
     // 一覧からは非表示にしない。
     if(data && data.error){
       console.warn('Rakuten API error for hotelNo ' + hotelNo + ':', data.error, data.error_description);
+      lastApiError = (data.error_description || data.error);
       availabilityCache[key] = null;
       priceCache[key] = null;
       return null;
@@ -1125,6 +1135,7 @@ async function fetchVacancy(hotelNo){
     priceCache[key] = available ? extractMinCharge(data) : null;
     return available;
   } catch(e){
+    lastApiError = '通信エラー（' + e.message + '）';
     availabilityCache[key] = null;
     priceCache[key] = null;
     return null;
@@ -1174,6 +1185,7 @@ function priceStatusLabel(h, short){
 
 // 現在選択中の宿泊日・人数で、表示中の全ホテルの空室を順番に確認しながら都度再描画する
 let availabilityRunId = 0;
+let allChecksFailed = false; // 検索した全件がAPIエラー等で確認できなかった場合にtrue（applicationId不正などの合図）
 async function refreshAvailabilityAndRender(){
   if(!stayDates.checkin || !stayDates.checkout){
     availabilityLoading = false;
@@ -1182,14 +1194,19 @@ async function refreshAvailabilityAndRender(){
   }
   const runId = ++availabilityRunId;
   availabilityLoading = true;
+  lastApiError = null;
+  allChecksFailed = false;
   renderFeed();
+  let attempted = 0, failed = 0;
   for(const h of HOTELS){
     if(runId !== availabilityRunId) return; // 途中で条件が変わったら中断
     const hotelNo = extractHotelNo(h);
     if(!hotelNo) continue;
     const key = availabilityKey(hotelNo);
     if(!(key in availabilityCache)){
-      await fetchVacancy(hotelNo);
+      const result = await fetchVacancy(hotelNo);
+      attempted++;
+      if(result === null) failed++;
       if(runId !== availabilityRunId) return;
       renderFeed();
       await new Promise(r => setTimeout(r, 200)); // APIへの連続アクセスを避けるための間隔
@@ -1197,6 +1214,7 @@ async function refreshAvailabilityAndRender(){
   }
   if(runId === availabilityRunId){
     availabilityLoading = false;
+    allChecksFailed = attempted > 0 && failed === attempted;
     renderFeed();
   }
 }
@@ -1242,6 +1260,8 @@ function resetStayDates(){
   document.getElementById('checkoutInput').value = '';
   availabilityLoading = false;
   availabilityRunId++; // 進行中の検索があれば中断する
+  allChecksFailed = false;
+  lastApiError = null;
   updateSearchButtonState();
   renderFeed();
   if(currentModalId && document.getElementById('overlay').classList.contains('open')) openModal(currentModalId, true);
@@ -1423,7 +1443,15 @@ function renderFeed(){
   if(hasStay && availabilityLoading){
     loadingHtml = `<p class="stay-loading">この期間・人数で空室のあるホテルを確認中… 空室なしと確認できたホテルから順に一覧から外れます。</p>`;
   }
-  document.getElementById('cardList').innerHTML = loadingHtml + list.map(h => cardHTML(h)).join('');
+  let errorBannerHtml = '';
+  if(hasStay && !availabilityLoading && allChecksFailed){
+    errorBannerHtml = `<div class="api-error-banner">
+      <strong>この日程の料金・空室確認ができませんでした。</strong>
+      検索したホテルすべてで確認に失敗しています。楽天トラベルAPIの設定（アプリケーションID等）に問題がある可能性があります。下に表示されている金額はすべて目安料金です。
+      ${lastApiError ? `<div class="api-error-detail">サーバーからの応答: ${lastApiError}</div>` : ''}
+    </div>`;
+  }
+  document.getElementById('cardList').innerHTML = errorBannerHtml + loadingHtml + list.map(h => cardHTML(h)).join('');
 }
 
 function cardHTML(h){
