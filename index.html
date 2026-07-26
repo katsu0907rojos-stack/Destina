@@ -1068,8 +1068,20 @@ function jsonpRequest(url){
 let availabilityCache = {};
 let availabilityLoading = false;
 
+// hotelNo × 宿泊日 × 人数 の組み合わせごとに「その条件での最安料金」をキャッシュ
+// 値: 数値=楽天APIが返した最安料金(hotelMinCharge) / null=取得失敗・該当プランなし
+let priceCache = {};
+
 function availabilityKey(hotelNo){
   return [hotelNo, stayDates.checkin, stayDates.checkout, occupancy].join('|');
+}
+
+// 楽天VacantHotelSearchのレスポンスから、その検索条件における最安料金(hotelMinCharge)を取り出す
+function extractMinCharge(data){
+  try{
+    const charge = data.hotels[0].hotel[0].hotelBasicInfo.hotelMinCharge;
+    return (typeof charge === 'number') ? charge : null;
+  } catch(e){ return null; }
 }
 
 async function fetchVacancy(hotelNo){
@@ -1085,11 +1097,37 @@ async function fetchVacancy(hotelNo){
     const data = await jsonpRequest(url);
     const available = !!(data && Array.isArray(data.hotels) && data.hotels.length > 0);
     availabilityCache[key] = available;
+    priceCache[key] = available ? extractMinCharge(data) : null;
     return available;
   } catch(e){
     availabilityCache[key] = null;
+    priceCache[key] = null;
     return null;
   }
+}
+
+// 表示用の料金を返す。宿泊日が選択され、かつその日付での楽天の最安料金が取得できていればそれを優先し、
+// 取得できていない（未検索・失敗・該当なし）場合は埋め込みの基準価格にフォールバックする。
+function getDisplayPrice(h){
+  if(stayDates.checkin && stayDates.checkout){
+    const hotelNo = extractHotelNo(h);
+    if(hotelNo){
+      const key = availabilityKey(hotelNo);
+      if(key in priceCache && priceCache[key] !== null && priceCache[key] !== undefined){
+        return priceCache[key];
+      }
+    }
+  }
+  return h.price;
+}
+
+// その宿泊日の楽天料金（日付連動の実料金）を表示中かどうか
+function isLivePrice(h){
+  if(!(stayDates.checkin && stayDates.checkout)) return false;
+  const hotelNo = extractHotelNo(h);
+  if(!hotelNo) return false;
+  const key = availabilityKey(hotelNo);
+  return key in priceCache && priceCache[key] !== null && priceCache[key] !== undefined;
 }
 
 // 現在選択中の宿泊日・人数で、表示中の全ホテルの空室を順番に確認しながら都度再描画する
@@ -1354,7 +1392,7 @@ function cardHTML(h){
     </div>
     <div class="card-foot">
       <div>
-        <span class="price">${yen(h.price)}<span class="from">〜 / 泊</span></span>
+        <span class="price">${yen(getDisplayPrice(h))}<span class="from">${isLivePrice(h) ? '〜 / 泊・選択日の楽天料金' : '〜 / 泊'}</span></span>
         <span class="rating">★ <b>${dash(h.rating)}</b></span>
       </div>
       <a class="detail-link" onclick="openModal('${h.id}')">詳細を見る →</a>
@@ -1389,7 +1427,7 @@ function openModal(id, silent){
       <p class="modal-desc">${h.desc}</p>
       <div class="tag-row">${h.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
       <div class="stat-row">
-        <div class="stat"><div class="v">${yen(h.price)}</div><div class="l">最安値 / 泊</div></div>
+        <div class="stat"><div class="v">${yen(getDisplayPrice(h))}</div><div class="l">${isLivePrice(h) ? '選択日の最安値 / 泊' : '最安値 / 泊'}</div></div>
         <div class="stat"><div class="v">★ ${dash(h.rating)}</div><div class="l">評価</div></div>
         <div class="stat"><div class="v">${dash(h.built,'年')}</div><div class="l">オープン年</div></div>
       </div>
@@ -1440,7 +1478,7 @@ function renderCompare(){
       </div>`;
     return;
   }
-  const knownPrices = list.map(h=>h.price).filter(p => p !== null && p !== undefined);
+  const knownPrices = list.map(h=>getDisplayPrice(h)).filter(p => p !== null && p !== undefined);
   const minPrice = knownPrices.length ? Math.min(...knownPrices) : null;
   wrap.innerHTML = `
     <div class="compare-head">
@@ -1455,7 +1493,7 @@ function renderCompare(){
         </tr></thead>
         <tbody>
           <tr><th>ホテル名</th>${list.map(h=>`<td class="th-name">${h.name}<div class="loc">${h.region}</div></td>`).join('')}</tr>
-          <tr><th>最安値 / 泊</th>${list.map(h=>`<td class="price-cell ${(h.price!==null && h.price===minPrice)?'best':''}">${yen(h.price)}</td>`).join('')}</tr>
+          <tr><th>最安値 / 泊</th>${list.map(h=>{const p=getDisplayPrice(h); return `<td class="price-cell ${(p!==null && p===minPrice)?'best':''}">${yen(p)}${isLivePrice(h)?'<div style="font-size:9px;color:var(--stone);">選択日</div>':''}</td>`;}).join('')}</tr>
           <tr><th>評価</th>${list.map(h=>`<td>★ ${dash(h.rating)}</td>`).join('')}</tr>
           <tr><th>オープン年</th>${list.map(h=>`<td class="mono">${dash(h.built,'年')}</td>`).join('')}</tr>
           <tr><th>リニューアル</th>${list.map(h=>`<td class="mono">${h.renovated ? h.renovated+'年' : '-'}</td>`).join('')}</tr>
@@ -1551,7 +1589,7 @@ function renderMapPage(){
         <div class="map-pop-body">
           <div class="map-pop-name" onclick="closeMapPopupAndOpen('${h.id}')">${h.name}</div>
           <div class="map-pop-loc">${h.region}</div>
-          <div class="map-pop-price">${yen(h.price)}<span style="color:var(--stone);font-size:10px;"> 〜 / 泊</span></div>
+          <div class="map-pop-price">${yen(getDisplayPrice(h))}<span style="color:var(--stone);font-size:10px;"> 〜 / 泊${isLivePrice(h)?'・選択日':''}</span></div>
         </div>
       </div>`;
     marker.bindPopup(popupHtml);
