@@ -1056,6 +1056,10 @@ let occupancy = 2; // 大人の人数（1部屋あたり）。人数ボタンで
 // 取得先: https://webservice.rakuten.co.jp/ （無料登録後、マイページで発行できます）
 // このIDはクライアント側のコードに直接埋め込む前提のものです（サーバー保存が必要な秘密鍵ではありません）。
 const RAKUTEN_APP_ID = '9cca85e7-0b44-4cfe-aa6e-f8ec3d2fd089';
+// このアプリ（Destina）は新しいRakuten Developersのアプリ登録形式（ドメイン制限つき）で発行されており、
+// applicationIdだけでなく、対になるaccessKeyも一緒に送らないと「invalid applicationId」として弾かれる。
+// Allowed websitesでドメインが制限されている前提のキーなので、クライアント側に埋め込む想定のもの。
+const RAKUTEN_ACCESS_KEY = 'pk_WUVzRNkpBSD1gzQekoj6UURjoLp7EWPWCPQKisg3lwQ';
 
 // h.bookingUrl（楽天アフィリエイトリンク）に埋め込まれた楽天トラベルの施設番号(hotelNo)を取り出す
 function extractHotelNo(h){
@@ -1110,8 +1114,9 @@ let lastApiError = null;
 async function fetchVacancy(hotelNo){
   const key = availabilityKey(hotelNo);
   if(key in availabilityCache) return availabilityCache[key];
-  const url = 'https://app.rakuten.co.jp/services/api/Travel/VacantHotelSearch/20170426'
+  const url = 'https://openapi.rakuten.co.jp/engine/api/Travel/VacantHotelSearch/20170426'
     + '?format=json&applicationId=' + encodeURIComponent(RAKUTEN_APP_ID)
+    + '&accessKey=' + encodeURIComponent(RAKUTEN_ACCESS_KEY)
     + '&hotelNo=' + encodeURIComponent(hotelNo)
     + '&checkinDate=' + stayDates.checkin
     + '&checkoutDate=' + stayDates.checkout
