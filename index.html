@@ -1146,7 +1146,11 @@ async function fetchVacancy(hotelNo){
     + '&checkoutDate=' + stayDates.checkout
     + '&adultNum=' + occupancy;
   try{
-    const data = await jsonpRequest(url);
+    // 新しいopenapi.rakuten.co.jp側は「許可したウェブサイトのオリジンからのCORSアクセス」を
+    // 前提にした仕組みのため、<script>タグ経由のJSONP（Originヘッダーが付かない）ではなく、
+    // 通常のfetch（ブラウザが自動でOriginヘッダーを付与する）で呼び出す。
+    const res = await fetch(url);
+    const data = await res.json();
     // 楽天APIはアプリケーションIDが無効・期限切れ等の場合、hotels配列ではなく
     // {error, error_description} 形式のエラーレスポンスを200 OKで返してくることがある。
     // これを「空室なし」と誤判定すると、本来は空室があるかもしれないホテルまで
