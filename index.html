@@ -286,6 +286,13 @@
     border-bottom:1px solid transparent;
   }
   .detail-link:hover{ border-color:var(--brass); }
+  .card-actions{ display:flex; align-items:center; gap:14px; }
+  .book-link{
+    font-size:11.5px; color:var(--void); background:var(--brass); font-weight:600;
+    display:flex; align-items:center; gap:4px; padding:7px 13px; border-radius:999px;
+    transition:opacity .2s ease;
+  }
+  .book-link:hover{ opacity:0.85; }
 
   /* ---------- modal ---------- */
   .overlay{
@@ -1321,7 +1328,14 @@ function buildBookingUrl(h){
     const wrapUrl = new URL(base);
     const pcRaw = wrapUrl.searchParams.get('pc');
     if(!pcRaw) return base;
-    const target = new URL(pcRaw);
+    // 元のpc URL（例: https://travel.rakuten.co.jp/HOTEL/13417/13417.html）からホテル番号を抽出し、
+    // 検索結果（プラン一覧）ページへ直接ジャンプするURLを組み立てる
+    const m = pcRaw.match(/\/HOTEL\/(\d+)\//);
+    if(!m) return base; // ホテル番号が取れない場合は従来どおりトップページへ
+    const hotelNo = m[1];
+    const target = new URL(`https://hotel.travel.rakuten.co.jp/hotelinfo/plan/${hotelNo}`);
+    target.searchParams.set('f_flg', 'PLAN');
+    target.searchParams.set('f_static', '1');
     target.searchParams.set('f_nen1', ci.getFullYear());
     target.searchParams.set('f_tuki1', ci.getMonth()+1);
     target.searchParams.set('f_hi1', ci.getDate());
@@ -1517,7 +1531,10 @@ function cardHTML(h){
         <span class="price">${yen(getDisplayPrice(h))}<span class="from price-status status-${priceStatus(h)}">${priceStatusLabel(h)}</span></span>
         <span class="rating">★ <b>${dash(h.rating)}</b></span>
       </div>
-      <a class="detail-link" onclick="openModal('${h.id}')">詳細を見る →</a>
+      <div class="card-actions">
+        <a class="detail-link" onclick="openModal('${h.id}')">詳細を見る →</a>
+        <a class="book-link" target="_blank" rel="noopener" href="${buildBookingUrl(h)}" onclick="event.stopPropagation()">予約に進む →</a>
+      </div>
     </div>
   </article>`;
 }
