@@ -1101,8 +1101,32 @@ function availabilityKey(hotelNo){
 }
 
 // 楽天VacantHotelSearchのレスポンスから、その検索条件における最安料金(hotelMinCharge)を取り出す
+// 楽天VacantHotelSearchのレスポンスから、実際に検索した日程・人数でヒットしたプランの
+// 「宿泊全泊分の合計金額」の最安値を取り出す。
+// 注意: hotelBasicInfo.hotelMinCharge は日程に関わらない施設の一般的な参考最安値であり、
+// 検索した日程の実料金とは異なることがある（例: 常に同じ値を返す）ため、使用しない。
+// 代わりに、返ってきた各room Info（部屋・プランごと）の dailyCharge.total（1泊ごとの金額）を
+// 宿泊日数分すべて合算し、その中の最安値を採用する。
 function extractMinCharge(data){
   try{
+    const hotelArr = data.hotels[0].hotel;
+    let min = null;
+    for(let i=1; i<hotelArr.length; i++){
+      const roomInfo = hotelArr[i] && hotelArr[i].roomInfo;
+      if(!Array.isArray(roomInfo)) continue;
+      let nightsTotal = 0;
+      let hasCharge = false;
+      roomInfo.forEach(entry => {
+        const dc = entry && entry.dailyCharge;
+        if(dc && typeof dc.total === 'number'){
+          nightsTotal += dc.total;
+          hasCharge = true;
+        }
+      });
+      if(hasCharge && (min === null || nightsTotal < min)) min = nightsTotal;
+    }
+    if(min !== null) return min;
+    // フォールバック: プラン別の内訳が取得できない場合のみ、施設の参考最安値を使う
     const charge = data.hotels[0].hotel[0].hotelBasicInfo.hotelMinCharge;
     return (typeof charge === 'number') ? charge : null;
   } catch(e){ return null; }
