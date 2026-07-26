@@ -111,6 +111,15 @@
     border-radius:999px; padding:5px 11px; white-space:nowrap;
   }
   .stay-reset:hover{ color:var(--brass); border-color:var(--brass); }
+  .stay-search{
+    color:var(--void); background:var(--brass); font-size:10.5px; font-weight:600;
+    border:1px solid var(--brass); border-radius:999px; padding:5px 13px; white-space:nowrap;
+    transition:opacity .2s ease;
+  }
+  .stay-search:hover{ opacity:0.85; }
+  .stay-search:disabled{
+    background:transparent; color:var(--stone); border-color:var(--line); cursor:default; opacity:0.6;
+  }
   .pref-filter{ position:relative; }
   .pref-filter-btn{
     background:var(--void-2); color:var(--paper); border:1px solid var(--line);
@@ -463,6 +472,7 @@
       <span class="stay-arrow">→</span>
       <input type="date" id="checkoutInput" class="stay-input" onchange="setStayDates()">
       <button type="button" class="stay-reset" onclick="resetStayDates()">解除</button>
+      <button type="button" class="stay-search" id="staySearchBtn" onclick="searchAvailability()" disabled>検索</button>
     </div>
     <div class="occ-filter" id="occFilter">
       <span class="stay-label">人数</span>
@@ -484,7 +494,7 @@
       <div class="pref-panel-list" id="prefPanelList"></div>
     </div>
   </div>
-  <p class="stay-hint">宿泊日を選ぶと、その期間・人数で空室のあるホテルだけを表示し、各ホテルの予約ボタンもその条件の楽天トラベル空室確認ページに直接リンクします。</p>
+  <p class="stay-hint">宿泊日を選び「検索」を押すと、その期間・人数で空室のあるホテルだけを表示し、各ホテルの予約ボタンもその条件の楽天トラベル空室確認ページに直接リンクします。</p>
 </div>
 
 <main id="feedPage" class="feed">
@@ -1095,6 +1105,17 @@ async function fetchVacancy(hotelNo){
     + '&adultNum=' + occupancy;
   try{
     const data = await jsonpRequest(url);
+    // 楽天APIはアプリケーションIDが無効・期限切れ等の場合、hotels配列ではなく
+    // {error, error_description} 形式のエラーレスポンスを200 OKで返してくることがある。
+    // これを「空室なし」と誤判定すると、本来は空室があるかもしれないホテルまで
+    // 一覧から消えてしまうため、エラーレスポンスは「不明（null）」として扱い、
+    // 一覧からは非表示にしない。
+    if(data && data.error){
+      console.warn('Rakuten API error for hotelNo ' + hotelNo + ':', data.error, data.error_description);
+      availabilityCache[key] = null;
+      priceCache[key] = null;
+      return null;
+    }
     const available = !!(data && Array.isArray(data.hotels) && data.hotels.length > 0);
     availabilityCache[key] = available;
     priceCache[key] = available ? extractMinCharge(data) : null;
@@ -1162,7 +1183,11 @@ async function refreshAvailabilityAndRender(){
 function changeOccupancy(delta){
   occupancy = Math.min(9, Math.max(1, occupancy + delta));
   document.getElementById('occCount').textContent = occupancy;
-  refreshAvailabilityAndRender();
+  // 人数を変えると空室確認の条件（キャッシュキー）が変わるため、その場では検索し直さず、
+  // 「検索」ボタンを押してもらったタイミングでまとめて確認する（重い連続リクエストを防ぐため）。
+  availabilityLoading = false;
+  updateSearchButtonState();
+  renderFeed();
   if(currentModalId && document.getElementById('overlay').classList.contains('open')) openModal(currentModalId, true);
   if(document.getElementById('comparePage').style.display !== 'none') renderCompare();
 }
@@ -1182,7 +1207,11 @@ function setStayDates(){
     return;
   }
   stayDates.checkin = ci; stayDates.checkout = co;
-  refreshAvailabilityAndRender();
+  // 日付を選んだだけでは検索を開始しない。「検索」ボタンが押せる状態にするだけにして、
+  // 実際のAPI呼び出しはボタン押下時（searchAvailability）にまとめて行う。
+  availabilityLoading = false;
+  updateSearchButtonState();
+  renderFeed();
   if(currentModalId && document.getElementById('overlay').classList.contains('open')) openModal(currentModalId, true);
   if(document.getElementById('comparePage').style.display !== 'none') renderCompare();
 }
@@ -1191,9 +1220,20 @@ function resetStayDates(){
   document.getElementById('checkinInput').value = '';
   document.getElementById('checkoutInput').value = '';
   availabilityLoading = false;
+  availabilityRunId++; // 進行中の検索があれば中断する
+  updateSearchButtonState();
   renderFeed();
   if(currentModalId && document.getElementById('overlay').classList.contains('open')) openModal(currentModalId, true);
   if(document.getElementById('comparePage').style.display !== 'none') renderCompare();
+}
+function updateSearchButtonState(){
+  const btn = document.getElementById('staySearchBtn');
+  if(!btn) return;
+  btn.disabled = !(stayDates.checkin && stayDates.checkout);
+}
+function searchAvailability(){
+  if(!(stayDates.checkin && stayDates.checkout)) return;
+  refreshAvailabilityAndRender();
 }
 
 // 選択中の宿泊日があれば、楽天トラベルのアフィリエイトリンク（pcパラメータ内のURL）に
