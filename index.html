@@ -269,6 +269,10 @@
   .card-foot{ display:flex; justify-content:space-between; align-items:center; padding:12px 2px 0; }
   .price{ font-family:'IBM Plex Mono',monospace; font-size:13.5px; }
   .price .from{ color:var(--stone); font-size:10.5px; margin-left:3px;}
+  .price-status.status-live{ color:var(--moss); font-weight:600; }
+  .price-status.status-checking{ color:var(--brass); }
+  .price-status.status-unchecked{ color:var(--clay); }
+  .price-status.status-failed{ color:var(--clay); }
   .rating{ font-size:11px; color:var(--stone); margin-left:12px; }
   .rating b{ color:var(--paper); font-weight:500; }
   .detail-link{
@@ -1142,13 +1146,30 @@ function getDisplayPrice(h){
   return h.price;
 }
 
-// その宿泊日の楽天料金（日付連動の実料金）を表示中かどうか
-function isLivePrice(h){
-  if(!(stayDates.checkin && stayDates.checkout)) return false;
+// 表示中の価格が「選択日で実際に確認できた楽天の料金」なのか、それ以外（検索前の目安、
+// もしくはこの施設だけ確認に失敗した目安）なのかを判定する。
+// 'live'       : 選択日・人数での楽天の実料金が取得できている
+// 'checking'   : 選択日はあるが、このホテルの確認がまだ完了していない（検索中）
+// 'unchecked'  : 選択日はあるが、まだ「検索」ボタンが押されていない（未検索）
+// 'failed'     : 選択日で検索したが、このホテルはAPIエラー等で確認できなかった（目安を表示中）
+// 'none'       : 宿泊日が選択されていない
+function priceStatus(h){
+  if(!(stayDates.checkin && stayDates.checkout)) return 'none';
   const hotelNo = extractHotelNo(h);
-  if(!hotelNo) return false;
+  if(!hotelNo) return 'failed';
   const key = availabilityKey(hotelNo);
-  return key in priceCache && priceCache[key] !== null && priceCache[key] !== undefined;
+  if(key in priceCache && priceCache[key] !== null && priceCache[key] !== undefined) return 'live';
+  if(key in availabilityCache) return 'failed'; // 確認は完了したが、料金が取れなかった／エラーだった
+  if(availabilityLoading) return 'checking';
+  return 'unchecked';
+}
+function priceStatusLabel(h, short){
+  const s = priceStatus(h);
+  if(s==='live') return short ? '選択日の料金' : '〜 / 泊・選択日の楽天料金';
+  if(s==='checking') return short ? '確認中…' : '〜 / 泊・この日程を確認中…';
+  if(s==='unchecked') return short ? '目安（未検索）' : '〜 / 泊・目安料金（「検索」を押すと選択日の料金を確認します）';
+  if(s==='failed') return short ? '目安（未確認）' : '〜 / 泊・目安料金（この日程は確認できませんでした）';
+  return short ? '' : '〜 / 泊';
 }
 
 // 現在選択中の宿泊日・人数で、表示中の全ホテルの空室を順番に確認しながら都度再描画する
@@ -1432,7 +1453,7 @@ function cardHTML(h){
     </div>
     <div class="card-foot">
       <div>
-        <span class="price">${yen(getDisplayPrice(h))}<span class="from">${isLivePrice(h) ? '〜 / 泊・選択日の楽天料金' : '〜 / 泊'}</span></span>
+        <span class="price">${yen(getDisplayPrice(h))}<span class="from price-status status-${priceStatus(h)}">${priceStatusLabel(h)}</span></span>
         <span class="rating">★ <b>${dash(h.rating)}</b></span>
       </div>
       <a class="detail-link" onclick="openModal('${h.id}')">詳細を見る →</a>
@@ -1467,7 +1488,7 @@ function openModal(id, silent){
       <p class="modal-desc">${h.desc}</p>
       <div class="tag-row">${h.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
       <div class="stat-row">
-        <div class="stat"><div class="v">${yen(getDisplayPrice(h))}</div><div class="l">${isLivePrice(h) ? '選択日の最安値 / 泊' : '最安値 / 泊'}</div></div>
+        <div class="stat"><div class="v">${yen(getDisplayPrice(h))}</div><div class="l price-status status-${priceStatus(h)}">${priceStatus(h)==='live' ? '選択日の最安値 / 泊' : priceStatus(h)==='checking' ? '確認中… / 泊' : priceStatus(h)==='unchecked' ? '目安 / 泊（未検索）' : priceStatus(h)==='failed' ? '目安 / 泊（未確認）' : '最安値 / 泊'}</div></div>
         <div class="stat"><div class="v">★ ${dash(h.rating)}</div><div class="l">評価</div></div>
         <div class="stat"><div class="v">${dash(h.built,'年')}</div><div class="l">オープン年</div></div>
       </div>
@@ -1533,7 +1554,7 @@ function renderCompare(){
         </tr></thead>
         <tbody>
           <tr><th>ホテル名</th>${list.map(h=>`<td class="th-name">${h.name}<div class="loc">${h.region}</div></td>`).join('')}</tr>
-          <tr><th>最安値 / 泊</th>${list.map(h=>{const p=getDisplayPrice(h); return `<td class="price-cell ${(p!==null && p===minPrice)?'best':''}">${yen(p)}${isLivePrice(h)?'<div style="font-size:9px;color:var(--stone);">選択日</div>':''}</td>`;}).join('')}</tr>
+          <tr><th>最安値 / 泊</th>${list.map(h=>{const p=getDisplayPrice(h); return `<td class="price-cell ${(p!==null && p===minPrice)?'best':''}">${yen(p)}<div class="price-status status-${priceStatus(h)}" style="font-size:9px;">${priceStatusLabel(h,true)}</div></td>`;}).join('')}</tr>
           <tr><th>評価</th>${list.map(h=>`<td>★ ${dash(h.rating)}</td>`).join('')}</tr>
           <tr><th>オープン年</th>${list.map(h=>`<td class="mono">${dash(h.built,'年')}</td>`).join('')}</tr>
           <tr><th>リニューアル</th>${list.map(h=>`<td class="mono">${h.renovated ? h.renovated+'年' : '-'}</td>`).join('')}</tr>
@@ -1629,7 +1650,7 @@ function renderMapPage(){
         <div class="map-pop-body">
           <div class="map-pop-name" onclick="closeMapPopupAndOpen('${h.id}')">${h.name}</div>
           <div class="map-pop-loc">${h.region}</div>
-          <div class="map-pop-price">${yen(getDisplayPrice(h))}<span style="color:var(--stone);font-size:10px;"> 〜 / 泊${isLivePrice(h)?'・選択日':''}</span></div>
+          <div class="map-pop-price">${yen(getDisplayPrice(h))}<span class="price-status status-${priceStatus(h)}" style="font-size:10px;"> ${priceStatusLabel(h)}</span></div>
         </div>
       </div>`;
     marker.bindPopup(popupHtml);
