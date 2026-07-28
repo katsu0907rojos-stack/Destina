@@ -55,6 +55,7 @@
     background:transparent; border:none; color:var(--stone);
     font-size:12.5px; padding:8px 16px; border-radius:999px;
     letter-spacing:0.03em; transition:all .25s ease;
+    white-space:nowrap;
   }
   .tab-btn.active{ background:var(--paper); color:var(--void); box-shadow:0 0 0 1.5px var(--brass); font-weight:600; }
   .fav-count{
@@ -63,6 +64,21 @@
     background:var(--brass); color:var(--void); border-radius:999px;
     font-size:10px; font-weight:600; font-family:'IBM Plex Mono',monospace;
     vertical-align:middle;
+  }
+
+  /* ---------- nav: keep logo + tabs on one line on narrow phones ---------- */
+  @media (max-width:480px){
+    .nav{ padding:12px 10px; gap:8px; }
+    .logo{ flex:none; }
+    .logo .mark{ font-size:15px; }
+    .logo .sub{ display:none; }
+    .tabs{ gap:0; flex:none; max-width:100%; }
+    .tab-btn{ font-size:10px; padding:6px 8px; }
+    .fav-count{ min-width:13px; height:13px; padding:0 3px; margin-left:3px; font-size:8.5px; }
+  }
+  @media (max-width:360px){
+    .tab-btn{ font-size:9px; padding:5px 6px; }
+    .logo .mark{ font-size:13px; }
   }
 
   /* ---------- filter chips ---------- */
