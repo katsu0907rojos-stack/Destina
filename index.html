@@ -189,10 +189,11 @@
   .occ-step:hover{ border-color:var(--brass); color:var(--brass); }
   .occ-count{ font-size:12.5px; min-width:14px; text-align:center; }
   .occ-unit{ font-size:11px; color:var(--stone); white-space:nowrap; }
-  .stay-loading{ font-size:11px; color:var(--stone); font-family:'IBM Plex Mono',monospace; padding:2px 4px 10px; letter-spacing:0.02em; }
+  .stay-loading{ font-size:11px; color:var(--stone); font-family:'IBM Plex Mono',monospace; padding:2px 4px 10px; letter-spacing:0.02em; grid-column:1 / -1; }
   .api-error-banner{
     background:rgba(182,92,61,0.12); border:1px solid var(--clay); border-radius:12px;
     padding:14px 16px; margin-bottom:20px; font-size:12.5px; line-height:1.7; color:var(--paper-dim);
+    grid-column:1 / -1;
   }
   .api-error-banner strong{ color:var(--clay); }
   .api-error-detail{ margin-top:6px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--stone); }
@@ -501,7 +502,7 @@
   <div class="stay-col">
     <div class="stay-filter" id="stayFilter">
       <span class="stay-label">宿泊日</span>
-      <input type="date" id="checkinInput" class="stay-input" onchange="setStayDates()">
+      <input type="date" id="checkinInput" class="stay-input" onchange="setStayDates(true)">
       <span class="stay-arrow">→</span>
       <input type="date" id="checkoutInput" class="stay-input" onchange="setStayDates()">
       <button type="button" class="stay-reset" onclick="resetStayDates()">解除</button>
@@ -2548,13 +2549,22 @@ function changeOccupancy(delta){
   if(document.getElementById('comparePage').style.display !== 'none') renderCompare();
 }
 
-function setStayDates(){
+function setStayDates(fromCheckin){
   const ci = document.getElementById('checkinInput').value;
   const co = document.getElementById('checkoutInput').value;
   if(ci){
     const next = new Date(ci+'T00:00:00');
     next.setDate(next.getDate()+1);
     document.getElementById('checkoutInput').min = next.toISOString().slice(0,10);
+  }
+  // チェックイン日を選んだ直後は、チェックアウト日のカレンダーを続けて自動的に開き、
+  // 「閉じる→また開く」という手間を無くして連続で選択できるようにする。
+  // （非対応ブラウザではshowPickerが存在しないため、安全に無視する）
+  if(fromCheckin && ci && !co){
+    const coInput = document.getElementById('checkoutInput');
+    if(typeof coInput.showPicker === 'function'){
+      try{ coInput.showPicker(); } catch(e){}
+    }
   }
   if(ci && co && co <= ci){
     alert('チェックアウト日はチェックイン日より後の日付を選んでください。');
@@ -2761,7 +2771,7 @@ function renderFeed(){
     const hotelNo = extractHotelNo(h);
     if(!hotelNo) return true; // 施設番号が特定できないホテルは判定できないため表示は残す
     const status = availabilityCache[availabilityKey(hotelNo)];
-    return status !== false; // false（空室なし確定）以外は表示（未取得中・不明は表示しつつ確認継続）
+    return status !== false && status !== null; // 空室なし確定・確認エラーの両方を非表示（未取得中・未検索は表示しつつ確認継続）
   });
   let loadingHtml = '';
   if(hasStay && availabilityLoading){
