@@ -236,7 +236,7 @@
   .gallery-wrap{ position:relative; }
   .gallery{
     display:flex; gap:6px; overflow-x:auto; scroll-snap-type:x mandatory;
-    border-radius:2px; scrollbar-width:none;
+    border-radius:2px; scrollbar-width:none; touch-action:pan-y;
   }
   .gallery::-webkit-scrollbar{ display:none; }
   .frame{
@@ -2745,6 +2745,78 @@ function scrollGallery(btn, dir){
   const step = frame ? frame.offsetWidth * 0.9 : 260;
   gallery.scrollBy({ left: dir * step, behavior: 'smooth' });
 }
+
+// ---------- ギャラリーのスワイプ操作 ----------
+// ネイティブのスクロール（勢いで複数枚飛ばされてしまう）に任せず、
+// 指の動きを直接追いかけて、指を離した時に必ず「前後1枚」だけ移動するようにする。
+(function initGallerySwipe(){
+  let drag = null;
+
+  function frames(gallery){ return Array.from(gallery.querySelectorAll('.frame')); }
+
+  function nearestIndex(gallery){
+    const list = frames(gallery);
+    const sl = gallery.scrollLeft;
+    let best = 0, bestDist = Infinity;
+    list.forEach((f, i) => {
+      const d = Math.abs(f.offsetLeft - sl);
+      if(d < bestDist){ bestDist = d; best = i; }
+    });
+    return best;
+  }
+
+  function goToIndex(gallery, index){
+    const list = frames(gallery);
+    if(!list.length) return;
+    const clamped = Math.max(0, Math.min(list.length - 1, index));
+    gallery.scrollTo({ left: list[clamped].offsetLeft, behavior: 'smooth' });
+  }
+
+  document.addEventListener('touchstart', function(e){
+    const gallery = e.target.closest('.gallery');
+    if(!gallery) return;
+    const t = e.touches[0];
+    drag = {
+      gallery,
+      startX: t.clientX,
+      startY: t.clientY,
+      startScrollLeft: gallery.scrollLeft,
+      startIndex: nearestIndex(gallery),
+      axis: null,
+      lastDx: 0,
+    };
+  }, { passive:true });
+
+  document.addEventListener('touchmove', function(e){
+    if(!drag) return;
+    const t = e.touches[0];
+    const dx = t.clientX - drag.startX;
+    const dy = t.clientY - drag.startY;
+    if(drag.axis === null && (Math.abs(dx) > 6 || Math.abs(dy) > 6)){
+      drag.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    }
+    if(drag.axis === 'x'){
+      e.preventDefault(); // 横方向の指の動きは、こちらで完全に制御する
+      drag.gallery.scrollLeft = drag.startScrollLeft - dx;
+      drag.lastDx = dx;
+    } else if(drag.axis === 'y'){
+      drag = null; // 縦スクロールの意図なら、通常のページスクロールに任せる
+    }
+  }, { passive:false });
+
+  function finishDrag(){
+    if(!drag || drag.axis !== 'x'){ drag = null; return; }
+    const { gallery, startIndex, lastDx } = drag;
+    const threshold = 30; // px。これ未満の動きは「めくらなかった」扱いで元の位置に戻す
+    let target = startIndex;
+    if(lastDx <= -threshold) target = startIndex + 1;
+    else if(lastDx >= threshold) target = startIndex - 1;
+    goToIndex(gallery, target);
+    drag = null;
+  }
+  document.addEventListener('touchend', finishDrag, { passive:true });
+  document.addEventListener('touchcancel', function(){ drag = null; }, { passive:true });
+})();
 
 function scrollFilters(dir){
   const el = document.getElementById('filters');
