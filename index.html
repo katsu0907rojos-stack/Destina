@@ -2768,12 +2768,36 @@ function parseCoord(str){
 }
 function dash(v, unit){ return (v===null || v===undefined) ? '-' : v + (unit||''); }
 
+// ボタンを連続で素早く押しても確実に1枚ずつ進めるための処理。
+// scrollBy（現在位置からの相対移動）だと、スムーズスクロールのアニメーション中に
+// 次のクリックが来た際、ブラウザによっては「アニメーション途中の位置」を基準に
+// 計算してしまい、連打してもほとんど進まない・反応が遅れることがある。
+// そこで「今どのカードへ向かっているか（目標インデックス）」自体をギャラリーごとに
+// 記憶しておき、クリックのたびにその目標インデックスを1つずつ進める／戻すことで、
+// 連打分がすべて正しく反映されるようにする。
+function galleryFrames(gallery){ return Array.from(gallery.querySelectorAll('.frame')); }
+
+function galleryNearestIndex(gallery, list){
+  const sl = gallery.scrollLeft;
+  let best = 0, bestDist = Infinity;
+  list.forEach((f, i) => {
+    const d = Math.abs(f.offsetLeft - sl);
+    if(d < bestDist){ bestDist = d; best = i; }
+  });
+  return best;
+}
+
 function scrollGallery(btn, dir){
   const wrap = btn.closest('.gallery-wrap');
   const gallery = wrap.querySelector('.gallery');
-  const frame = wrap.querySelector('.frame');
-  const step = frame ? frame.offsetWidth * 0.9 : 260;
-  gallery.scrollBy({ left: dir * step, behavior: 'smooth' });
+  const list = galleryFrames(gallery);
+  if(!list.length) return;
+  const current = gallery.dataset.targetIndex !== undefined
+    ? parseInt(gallery.dataset.targetIndex, 10)
+    : galleryNearestIndex(gallery, list);
+  const target = Math.max(0, Math.min(list.length - 1, current + dir));
+  gallery.dataset.targetIndex = String(target);
+  gallery.scrollTo({ left: list[target].offsetLeft, behavior: 'smooth' });
 }
 
 // ---------- ギャラリーのスワイプ操作 ----------
@@ -2799,6 +2823,7 @@ function scrollGallery(btn, dir){
     const list = frames(gallery);
     if(!list.length) return;
     const clamped = Math.max(0, Math.min(list.length - 1, index));
+    gallery.dataset.targetIndex = String(clamped); // 矢印ボタンの連打処理と目標位置を同期させる
     gallery.scrollTo({ left: list[clamped].offsetLeft, behavior: 'smooth' });
   }
 
