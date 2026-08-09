@@ -2939,15 +2939,18 @@ function artStyle(hue, index, total){
     `linear-gradient(${angle}deg, hsl(${h1} 46% ${light1}%), hsl(${h2} 40% ${light2}%));`;
 }
 
-// 楽天トラベルの画像CDN(trvimg.r10s.jp)の /origin/ 系パスは
-// "?fit=inside|幅:高さ" というクエリでアスペクト比を保ったまま縮小リサイズを配信してくれる。
+// 楽天トラベルの画像CDN(trvimg.r10s.jp)は、
+// ・/image_up/.../origin/ 系パス
+// ・/HOTEL/{施設番号}/{施設番号}.jpg という「代表写真」パス
+// のいずれも "?fit=inside|幅:高さ" というクエリでアスペクト比を保ったまま
+// 縮小リサイズを配信してくれる（前者は既存データ内に実例があり動作確認済み）。
 // このサイトのデータには「?fit=inside|2754:1548」のまま(=4Kクラスの原寸に近いサイズ)や
 // 一切リサイズ指定のない生の原寸画像が多数含まれており、これが最大640px幅・
 // 場合によっては120px幅のサムネイルとしてしか表示しない箇所でもそのまま読み込まれ、
 // 画像読み込みが重くなる主因になっている。表示先の実サイズに応じて要求サイズを絞る。
 function optimizeImgUrl(url, w, h){
   if(!url) return url;
-  if(/^https:\/\/trvimg\.r10s\.jp\/.*\/origin\//.test(url)){
+  if(/^https:\/\/trvimg\.r10s\.jp\/.*\/origin\//.test(url) || /^https:\/\/trvimg\.r10s\.jp\/share\/HOTEL\/\d+\/\d+\.jpg/.test(url)){
     const base = url.split('?')[0];
     return `${base}?fit=inside|${w}:${h}`;
   }
@@ -2961,8 +2964,10 @@ function artHTML(h, index, caption, showIdx, sizeHint){
   // thumb: 比較表・地図ポップアップ用の小さなサムネイル(最大120〜140px幅相当)
   const [tw, th] = sizeHint === 'thumb' ? [320, 220] : [1200, 800];
   const optUrl = optimizeImgUrl(realUrl, tw, th);
+  // リサイズ指定に対応していないパスだった場合に備え、失敗時は元URLへ1回だけ
+  // 自動フォールバックしてから諦める（いきなり画像が消えるのを防ぐ）
   const photoTag = optUrl
-    ? `<img class="frame-photo" loading="lazy" decoding="async" alt="${h.name}" src="${optUrl}" onerror="this.remove()">`
+    ? `<img class="frame-photo" loading="lazy" decoding="async" alt="${h.name}" src="${optUrl}" data-fallback="${realUrl}" onerror="if(this.dataset.fallback&&this.src!==this.dataset.fallback){this.src=this.dataset.fallback;}else{this.remove();}">`
     : '';
   return `<div class="frame-art" style="${artStyle(h.hue, index, h.photos.length)}">
       ${photoTag}
@@ -3419,7 +3424,7 @@ function renderMapPage(){
     const popupHtml = `
       <div class="map-pop">
         <div class="map-pop-photo" style="${artStyle(h.hue, 0, h.photos.length)}">
-          ${photo ? `<img loading="lazy" decoding="async" alt="${h.name}" src="${photo}" onerror="this.remove()">` : ''}
+          ${photo ? `<img loading="lazy" decoding="async" alt="${h.name}" src="${photo}" data-fallback="${h.hero||''}" onerror="if(this.dataset.fallback&&this.src!==this.dataset.fallback){this.src=this.dataset.fallback;}else{this.remove();}">` : ''}
         </div>
         <div class="map-pop-body">
           <div class="map-pop-name" onclick="closeMapPopupAndOpen('${h.id}')">${h.name}</div>
