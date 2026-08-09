@@ -2946,14 +2946,44 @@ function artStyle(hue, index, total){
 // （images.weserv.nl）を経由させ、表示先のサイズへ確実にリサイズ・再圧縮してから
 // 配信するようにする。プロキシが使えない場合は<img>のonerrorで元URLへ自動フォールバックする。
 // [経緯] 画像が重かったため、①楽天CDN独自の?fit=insideパラメータでの縮小 → ②外部の
-// リサイズプロキシ(images.weserv.nl)経由、の順に試したが、②はこのサイトがまだ誰にも
-// アクセスされておらずプロキシ側にキャッシュが一切ない状態だったため、
-// 「プロキシが楽天から元画像を取得→リサイズ→配信」という余計な一往復が挟まり、
-// 直接読み込むより遅くなってしまった。そのため直接読み込みに戻す。
-// 元画像が大きいこと自体は変わっていないが、loading="lazy"（画面外は読み込まない）と
-// decoding="async"（デコードでメインスレッドを止めない）は効果があるためそのまま残す。
+// リサイズプロキシ(images.weserv.nl)を全画像に適用、の順に試したが、②はこのサイトが
+// まだ誰にもアクセスされておらずプロキシ側にキャッシュが一切ない状態だったため、
+// 「プロキシが元画像を取得→リサイズ→配信」という余計な一往復がほぼ全画像で発生し、
+// 直接読み込むより遅くなってしまった。
+//
+// ただし、その中でも一部のホテル公式サイト（WordPress等への直リンク）だけは、
+// リサイズ用のパラメータが一切付いていない「アップロードされた生の高解像度写真」を
+// そのまま配信しており、数MB〜十数MBに達する可能性がある（例:パレスホテル東京）。
+// これらはファイルサイズの削減効果がプロキシの余計な一往復分を大きく上回るため、
+// 「明らかに生画像を返してくることが分かっているホスト」だけに限定してプロキシを使う。
+// 楽天CDNや、既にサイズ指定付きで配信されているMarriott/Travelocity/Patina等は対象外のまま。
+const RAW_IMAGE_HOSTS = new Set([
+  'www.palacehoteltokyo.com',
+  'www.ana.co.jp',
+  'www.suihotels.com',
+  'www.yumesenkei.com',
+  'www.appi.co.jp',
+  'goten-resort.jp',
+  'awaji-resort.pasonagroup.co.jp',
+  'mifuneyama.co.jp',
+  'www.peninsula.com',
+  'www.princehotels.com',
+  'www.editionhotels.com',
+]);
+
 function optimizeImgUrl(url, w, h){
-  return url;
+  if(!url) return url;
+  let host;
+  try { host = new URL(url).hostname; } catch(e){ return url; }
+  // 楽天の /share/HOTEL/{id}/{id}.jpg は、他の楽天画像パスと違いサイズ指定が一切付かない
+  // 「代表写真」の生ファイルで、同じく巨大になりうるためこちらも対象に含める
+  const isRawRakutenHero = host === 'trvimg.r10s.jp' && /^\/share\/HOTEL\/\d+\/\d+\.jpg$/.test(new URL(url).pathname);
+  if(!RAW_IMAGE_HOSTS.has(host) && !isRawRakutenHero) return url; // 対象外のホストはこれまで通り直接読み込む
+
+  const clean = url.split('?')[0];
+  const encoded = encodeURIComponent(clean);
+  // default=元URL: プロキシ側で取得・変換に失敗した場合、サーバー側で自動的に元画像へフォールバックしてくれる
+  return `https://wsrv.nl/?url=${encoded}&w=${w}&h=${h}&fit=inside&we=1&output=jpg&q=78&default=${encoded}`;
 }
 
 function artHTML(h, index, caption, showIdx, sizeHint){
@@ -2966,7 +2996,7 @@ function artHTML(h, index, caption, showIdx, sizeHint){
   // リサイズ指定に対応していないパスだった場合に備え、失敗時は元URLへ1回だけ
   // 自動フォールバックしてから諦める（いきなり画像が消えるのを防ぐ）
   const photoTag = optUrl
-    ? `<img class="frame-photo" loading="lazy" decoding="async" alt="${h.name}" src="${optUrl}" onerror="this.remove()">`
+    ? `<img class="frame-photo" loading="lazy" decoding="async" alt="${h.name}" src="${optUrl}" data-fallback="${realUrl}" onerror="if(this.dataset.fallback&&this.src!==this.dataset.fallback){this.src=this.dataset.fallback;}else{this.remove();}">`
     : '';
   return `<div class="frame-art" style="${artStyle(h.hue, index, h.photos.length)}">
       ${photoTag}
@@ -3423,7 +3453,7 @@ function renderMapPage(){
     const popupHtml = `
       <div class="map-pop">
         <div class="map-pop-photo" style="${artStyle(h.hue, 0, h.photos.length)}">
-          ${photo ? `<img loading="lazy" decoding="async" alt="${h.name}" src="${photo}" onerror="this.remove()">` : ''}
+          ${photo ? `<img loading="lazy" decoding="async" alt="${h.name}" src="${photo}" data-fallback="${h.hero||''}" onerror="if(this.dataset.fallback&&this.src!==this.dataset.fallback){this.src=this.dataset.fallback;}else{this.remove();}">` : ''}
         </div>
         <div class="map-pop-body">
           <div class="map-pop-name" onclick="closeMapPopupAndOpen('${h.id}')">${h.name}</div>
