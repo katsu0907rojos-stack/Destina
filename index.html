@@ -2901,11 +2901,30 @@ function artStyle(hue, index, total){
     `linear-gradient(${angle}deg, hsl(${h1} 46% ${light1}%), hsl(${h2} 40% ${light2}%));`;
 }
 
-function artHTML(h, index, caption, showIdx){
+// 楽天トラベルの画像CDN(trvimg.r10s.jp)の /origin/ 系パスは
+// "?fit=inside|幅:高さ" というクエリでアスペクト比を保ったまま縮小リサイズを配信してくれる。
+// このサイトのデータには「?fit=inside|2754:1548」のまま(=4Kクラスの原寸に近いサイズ)や
+// 一切リサイズ指定のない生の原寸画像が多数含まれており、これが最大640px幅・
+// 場合によっては120px幅のサムネイルとしてしか表示しない箇所でもそのまま読み込まれ、
+// 画像読み込みが重くなる主因になっている。表示先の実サイズに応じて要求サイズを絞る。
+function optimizeImgUrl(url, w, h){
+  if(!url) return url;
+  if(/^https:\/\/trvimg\.r10s\.jp\/.*\/origin\//.test(url)){
+    const base = url.split('?')[0];
+    return `${base}?fit=inside|${w}:${h}`;
+  }
+  return url;
+}
+
+function artHTML(h, index, caption, showIdx, sizeHint){
   const idxTag = showIdx ? `<span class="frame-idx">${String(index+1).padStart(2,'0')} / ${String(h.photos.length).padStart(2,'0')}</span>` : '';
   const realUrl = (index===0 && h.hero) ? h.hero : (h.photoUrls && h.photoUrls[index]);
-  const photoTag = realUrl
-    ? `<img class="frame-photo" loading="lazy" alt="${h.name}" src="${realUrl}" onerror="this.remove()">`
+  // full: カード一覧・モーダルの大きな写真枠(最大640px幅、2倍密度ディスプレイまで考慮)
+  // thumb: 比較表・地図ポップアップ用の小さなサムネイル(最大120〜140px幅相当)
+  const [tw, th] = sizeHint === 'thumb' ? [320, 220] : [1200, 800];
+  const optUrl = optimizeImgUrl(realUrl, tw, th);
+  const photoTag = optUrl
+    ? `<img class="frame-photo" loading="lazy" decoding="async" alt="${h.name}" src="${optUrl}" onerror="this.remove()">`
     : '';
   return `<div class="frame-art" style="${artStyle(h.hue, index, h.photos.length)}">
       ${photoTag}
@@ -3198,7 +3217,7 @@ function renderCompare(){
       <table>
         <thead><tr>
           <th style="position:sticky;left:0;background:var(--void-2);">項目</th>
-          ${list.map(h=>`<th class="th-photo">${artHTML(h, 0, '', false)}</th>`).join('')}
+          ${list.map(h=>`<th class="th-photo">${artHTML(h, 0, '', false, 'thumb')}</th>`).join('')}
         </tr></thead>
         <tbody>
           <tr><th>ホテル名</th>${list.map(h=>`<td class="th-name">${h.name}<div class="loc">${h.region}</div></td>`).join('')}</tr>
@@ -3289,11 +3308,11 @@ function renderMapPage(){
 
   points.forEach(({h, p}) => {
     const marker = L.marker([p.lat, p.lng], { icon: pinIcon }).addTo(favMapMarkers);
-    const photo = h.hero || '';
+    const photo = optimizeImgUrl(h.hero || '', 320, 220);
     const popupHtml = `
       <div class="map-pop">
         <div class="map-pop-photo" style="${artStyle(h.hue, 0, h.photos.length)}">
-          ${photo ? `<img loading="lazy" alt="${h.name}" src="${photo}" onerror="this.remove()">` : ''}
+          ${photo ? `<img loading="lazy" decoding="async" alt="${h.name}" src="${photo}" onerror="this.remove()">` : ''}
         </div>
         <div class="map-pop-body">
           <div class="map-pop-name" onclick="closeMapPopupAndOpen('${h.id}')">${h.name}</div>
