@@ -190,6 +190,8 @@
   .occ-count{ font-size:12.5px; min-width:14px; text-align:center; }
   .occ-unit{ font-size:11px; color:var(--stone); white-space:nowrap; }
   .stay-loading{ font-size:11px; color:var(--stone); font-family:'IBM Plex Mono',monospace; padding:2px 4px 10px; letter-spacing:0.02em; grid-column:1 / -1; }
+  .feed-banners{ grid-column:1 / -1; }
+  .feed-banners:empty{ display:none; }
   .api-error-banner{
     background:rgba(182,92,61,0.12); border:1px solid var(--clay); border-radius:12px;
     padding:14px 16px; margin-bottom:20px; font-size:12.5px; line-height:1.7; color:var(--paper-dim);
@@ -2699,9 +2701,13 @@ function priceStatusLabel(h, short){
   return short ? '' : '〜 / 泊';
 }
 
-// 現在選択中の宿泊日・人数で、表示中の全ホテルの空室を順番に確認しながら都度再描画する
+// 現在選択中の宿泊日・人数で、表示中の全ホテルの空室を確認しながら都度再描画する。
+// 以前は1件ずつ順番に確認していたため（79件 × 通信時間+200ms待機）検索完了までに
+// かなり時間がかかっていた。少数ずつ並行して確認することで、楽天APIへの
+// 同時アクセス数は抑えつつ全体の待ち時間を大きく縮める。
 let availabilityRunId = 0;
 let allChecksFailed = false; // 検索した全件がAPIエラー等で確認できなかった場合にtrue（applicationId不正などの合図）
+const AVAILABILITY_CONCURRENCY = 5;
 async function refreshAvailabilityAndRender(){
   if(!stayDates.checkin || !stayDates.checkout){
     availabilityLoading = false;
@@ -2713,21 +2719,41 @@ async function refreshAvailabilityAndRender(){
   lastApiError = null;
   allChecksFailed = false;
   renderFeed();
+
+  const targets = HOTELS
+    .map(h => extractHotelNo(h))
+    .filter(hotelNo => hotelNo && !(availabilityKey(hotelNo) in availabilityCache));
+
   let attempted = 0, failed = 0;
-  for(const h of HOTELS){
-    if(runId !== availabilityRunId) return; // 途中で条件が変わったら中断
-    const hotelNo = extractHotelNo(h);
-    if(!hotelNo) continue;
-    const key = availabilityKey(hotelNo);
-    if(!(key in availabilityCache)){
+  let cursor = 0;
+
+  // 確認結果が数件まとまってから一度だけ再描画する（1件ごとの再描画による
+  // カクつきを防ぐため、次の描画フレームまでの分をまとめてコミットする）
+  let renderScheduled = false;
+  function scheduleRender(){
+    if(renderScheduled) return;
+    renderScheduled = true;
+    requestAnimationFrame(() => {
+      renderScheduled = false;
+      if(runId === availabilityRunId) renderFeed();
+    });
+  }
+
+  async function worker(){
+    while(cursor < targets.length){
+      if(runId !== availabilityRunId) return;
+      const hotelNo = targets[cursor++];
       const result = await fetchVacancy(hotelNo);
       attempted++;
       if(result === null) failed++;
       if(runId !== availabilityRunId) return;
-      renderFeed();
-      await new Promise(r => setTimeout(r, 200)); // APIへの連続アクセスを避けるための間隔
+      scheduleRender();
     }
   }
+
+  const workerCount = Math.min(AVAILABILITY_CONCURRENCY, targets.length);
+  await Promise.all(Array.from({ length: workerCount }, worker));
+
   if(runId === availabilityRunId){
     availabilityLoading = false;
     allChecksFailed = attempted > 0 && failed === attempted;
@@ -3075,6 +3101,15 @@ function renderFilters(){
 }
 function setTag(t){ activeTag = t; renderFilters(); renderFeed(); }
 
+// 検索中（空室確認中）は数百ms〜1秒間隔でrenderFeed()が繰り返し呼ばれる。
+// 以前はそのたびにカード一覧のDOMをまるごと作り直していたため、
+// ・写真ギャラリーのスクロール位置がリセットされる
+// ・ページ全体がレイアウトし直され、下にスクロールしている最中に
+// 　引っかかったり、位置が戻されたりする（カクつき）
+// という問題が起きていた。
+// 今は「対象外になったホテルのカードだけを取り除き、残るカードの要素自体は
+// 作り直さない」差分更新にすることで、ギャラリーの状態やスクロール位置を
+// 保ったまま、変化のあった部分だけを軽く更新するようにしている。
 function renderFeed(){
   const hasStay = !!(stayDates.checkin && stayDates.checkout);
   const list = HOTELS.filter(h =>
@@ -3099,43 +3134,73 @@ function renderFeed(){
       ${lastApiError ? `<div class="api-error-detail">サーバーからの応答: ${lastApiError}</div>` : ''}
     </div>`;
   }
-  // 空室確認中は数百ms間隔でrenderFeed()が繰り返し呼ばれ、カード一覧のDOMを
-  // まるごと作り直すため、そのままだと矢印クリックで次の写真へスクロール中に
-  // DOMが再生成され、途中経過のscrollLeft（スナップ境界の手前）がそのまま複製される。
-  // scroll-snapが最寄りのスナップ位置（＝クリック前の写真）へ戻してしまい、
-  // 「めくったのに元の写真に戻る」ように見えていた。
-  // そこで生のscrollLeftではなく「今向かっている枚数（目標インデックス）」を保存し、
-  // 再描画後はその枚数のスナップ位置へ直接（アニメーションなしで）合わせ直す。
-  const scrollPositions = {};
-  document.querySelectorAll('#cardList .gallery[data-hotel-id]').forEach(el => {
-    const list = galleryFrames(el);
-    if(!list.length) return;
-    const targetIndex = el.dataset.targetIndex !== undefined
-      ? parseInt(el.dataset.targetIndex, 10)
-      : galleryNearestIndex(el, list);
-    if(targetIndex > 0) scrollPositions[el.dataset.hotelId] = targetIndex;
+
+  const container = document.getElementById('cardList');
+
+  // 確認中・エラーのバナーは専用のプレースホルダだけを更新する
+  let bannerEl = container.querySelector(':scope > .feed-banners');
+  if(!bannerEl){
+    bannerEl = document.createElement('div');
+    bannerEl.className = 'feed-banners';
+    container.prepend(bannerEl);
+  }
+  const bannerHtml = errorBannerHtml + loadingHtml;
+  if(bannerEl.innerHTML !== bannerHtml) bannerEl.innerHTML = bannerHtml;
+
+  // 既存カードをホテルIDで引けるようにしておく
+  const existing = new Map();
+  container.querySelectorAll(':scope > .card[data-hotel-id]').forEach(el => existing.set(el.dataset.hotelId, el));
+
+  let cursor = bannerEl.nextSibling;
+  list.forEach(h => {
+    let el = existing.get(h.id);
+    if(el){
+      existing.delete(h.id);
+      updateCardDynamic(el, h); // 既にDOMにあるカードは作り直さず、お気に入り・料金など変化しうる部分だけ更新
+    } else {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = cardHTML(h).trim();
+      el = tmp.firstElementChild;
+    }
+    if(cursor !== el) container.insertBefore(el, cursor);
+    cursor = el.nextSibling;
   });
 
-  document.getElementById('cardList').innerHTML = errorBannerHtml + loadingHtml + list.map(h => cardHTML(h)).join('');
+  // 一覧から外れたホテル（空室なし判定・タグ絞り込み変更など）のカードだけを取り除く
+  existing.forEach(el => el.remove());
+}
 
-  if(Object.keys(scrollPositions).length){
-    document.querySelectorAll('#cardList .gallery[data-hotel-id]').forEach(el => {
-      const savedIndex = scrollPositions[el.dataset.hotelId];
-      if(!savedIndex) return;
-      const list = galleryFrames(el);
-      const clamped = Math.min(savedIndex, list.length - 1);
-      if(clamped > 0 && list[clamped]){
-        el.scrollLeft = list[clamped].offsetLeft;
-        el.dataset.targetIndex = String(clamped);
-      }
-    });
+// 既存カードのうち、検索条件やお気に入り状態によって変わりうる部分だけを更新する。
+// 写真ギャラリー・名前・タグなど静的な部分には触れないため、スクロール位置や
+// レイアウトはそのまま保たれる。
+function updateCardDynamic(el, h){
+  const isFav = favorites.has(h.id);
+  const stamp = el.querySelector('.stamp');
+  if(stamp) stamp.classList.toggle('active', isFav);
+
+  const priceEl = el.querySelector('.price');
+  if(priceEl){
+    priceEl.innerHTML = `${yen(getDisplayPrice(h))}<span class="from price-status status-${priceStatus(h)}">${priceStatusLabel(h)}</span>`;
+  }
+
+  const ratingB = el.querySelector('.rating b');
+  if(ratingB) ratingB.textContent = dash(h.rating);
+
+  const bookLink = el.querySelector('.book-link');
+  if(bookLink) bookLink.setAttribute('href', buildBookingUrl(h));
+
+  // 裏側の自動収集（syncLiveData）で代表写真が更新された場合のみ、1枚目の画像を差し替える
+  const heroImg = el.querySelector('.frame-photo');
+  if(heroImg && h.hero){
+    const optUrl = optimizeImgUrl(h.hero, 1200, 800);
+    if(heroImg.getAttribute('src') !== optUrl) heroImg.setAttribute('src', optUrl);
   }
 }
 
 function cardHTML(h){
   const isFav = favorites.has(h.id);
   return `
-  <article class="card">
+  <article class="card" data-hotel-id="${h.id}">
     <div class="card-head">
       <div>
         <div class="card-name serif" onclick="openModal('${h.id}')">${h.name}</div>
