@@ -245,6 +245,7 @@
     display:flex; gap:6px; overflow-x:auto; scroll-snap-type:x mandatory;
     border-radius:2px; scrollbar-width:none; touch-action:pan-y;
   }
+  .gallery.no-snap{ scroll-snap-type:none; }
   .gallery::-webkit-scrollbar{ display:none; }
   .frame{
     position:relative; flex:none; scroll-snap-align:start; scroll-snap-stop:always;
@@ -3045,19 +3046,36 @@ function galleryNearestIndex(gallery, list){
 // アニメーションに置き換え、キビキビ切り替わるようにする。
 // 連打・連続スワイプで新しい目標が来たら、進行中のアニメーションは中断して
 // 新しい目標へすぐに向き直す（token方式で古いrequestAnimationFrameループを無効化）。
+// scroll-snap-type:x mandatory が付いていると、ブラウザ側がこちらのアニメーション中の
+// 途中位置を見て「最寄りのスナップ位置」へ即座に合わせ直そうとしてしまい、
+// duration/easingをどう調整してもスライドしている感覚が出ない（一瞬で切り替わって見える）
+// 原因になっていた。アニメーション中だけスナップを一時的に無効化し、
+// 目的地に着地したタイミングで元に戻す（着地点自体がスナップ位置なので違和感は出ない）。
+// 最後の写真（スワイプできる先がないことを示すため、幅78%で表示している）は
+// offsetLeftの値が、ブラウザが実際にスクロールできる最大位置を超えてしまうことがある。
+// そこへ向けてアニメーションしようとすると、ブラウザ側がその都度スクロール可能な
+// 範囲へ強制的に引き戻すため、「行けそうで行けない」ピクピクとした動きに見えていた。
+// 目的地を実際のスクロール可能範囲内に収まるようクランプしてから使う。
 function animateGalleryScroll(gallery, targetLeft, duration){
-  duration = duration || 120;
+  duration = duration || 200;
+  const maxScrollLeft = Math.max(0, gallery.scrollWidth - gallery.clientWidth);
+  targetLeft = Math.max(0, Math.min(targetLeft, maxScrollLeft));
   const token = (gallery._scrollAnimToken = (gallery._scrollAnimToken || 0) + 1);
   const startLeft = gallery.scrollLeft;
   const delta = targetLeft - startLeft;
   if(Math.abs(delta) < 1) return;
+  gallery.classList.add('no-snap');
   const startTime = performance.now();
   function step(now){
     if(gallery._scrollAnimToken !== token) return; // 新しい目標に割り込まれたら中断
     const t = Math.min(1, (now - startTime) / duration);
-    const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+    const eased = 1 - Math.pow(1 - t, 2); // easeOutQuad（Cubicより滑らかに動きが見える）
     gallery.scrollLeft = startLeft + delta * eased;
-    if(t < 1) requestAnimationFrame(step);
+    if(t < 1){
+      requestAnimationFrame(step);
+    } else if(gallery._scrollAnimToken === token){
+      gallery.classList.remove('no-snap');
+    }
   }
   requestAnimationFrame(step);
 }
@@ -3124,6 +3142,7 @@ function scrollGallery(btn, dir){
     const dy = t.clientY - drag.startY;
     if(drag.axis === null && (Math.abs(dx) > 6 || Math.abs(dy) > 6)){
       drag.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if(drag.axis === 'x') drag.gallery.classList.add('no-snap');
     }
     if(drag.axis === 'x'){
       e.preventDefault(); // 横方向の指の動きは、こちらで完全に制御する
@@ -3145,7 +3164,7 @@ function scrollGallery(btn, dir){
     drag = null;
   }
   document.addEventListener('touchend', finishDrag, { passive:true });
-  document.addEventListener('touchcancel', function(){ drag = null; }, { passive:true });
+  document.addEventListener('touchcancel', finishDrag, { passive:true });
 })();
 
 function scrollFilters(dir){
@@ -3593,7 +3612,7 @@ function scrollToTop(){
 // 失敗しても、あらかじめ埋め込まれているデータでそのまま表示され続けるので安全。
 (async function syncLiveData(){
   try {
-    const res = await fetch('/.netlify/functions/get-hotels');
+    const res = await fetch('https://sparkling-bunny-d12e12.netlify.app/.netlify/functions/get-hotels');
     if(!res.ok) return;
     const data = await res.json();
     if(!data || !data.hotels) return;
