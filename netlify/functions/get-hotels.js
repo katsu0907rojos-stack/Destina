@@ -5,7 +5,7 @@ const { getStore } = require("@netlify/blobs");
 // サイト本体はGitHub Pagesの独自ドメインで公開されているため、
 // このNetlify Functionを別ドメインから呼び出せるよう許可する。
 // ここは実際の独自ドメインに置き換えること（例: "https://destina.com"）。
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "https://destina.com";
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "https://destinahotels.com";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
