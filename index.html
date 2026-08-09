@@ -2939,22 +2939,18 @@ function artStyle(hue, index, total){
     `linear-gradient(${angle}deg, hsl(${h1} 46% ${light1}%), hsl(${h2} 40% ${light2}%));`;
 }
 
-// 楽天トラベルの画像CDN(trvimg.r10s.jp)は、
-// ・/image_up/.../origin/ 系パス
-// ・/HOTEL/{施設番号}/{施設番号}.jpg という「代表写真」パス
-// のいずれも "?fit=inside|幅:高さ" というクエリでアスペクト比を保ったまま
-// 縮小リサイズを配信してくれる（前者は既存データ内に実例があり動作確認済み）。
-// このサイトのデータには「?fit=inside|2754:1548」のまま(=4Kクラスの原寸に近いサイズ)や
-// 一切リサイズ指定のない生の原寸画像が多数含まれており、これが最大640px幅・
-// 場合によっては120px幅のサムネイルとしてしか表示しない箇所でもそのまま読み込まれ、
-// 画像読み込みが重くなる主因になっている。表示先の実サイズに応じて要求サイズを絞る。
+// 楽天側の独自パラメータ「?fit=inside|幅:高さ」に賭けて縮小を試みていたが、
+// 実際にその通りリサイズされているかをこちらの環境からは確認できず、
+// 依然として重いままだった＝効いていない可能性が高い。
+// そこで楽天側の挙動には依存せず、動作実績のある外部の画像リサイズプロキシ
+// （images.weserv.nl）を経由させ、表示先のサイズへ確実にリサイズ・再圧縮してから
+// 配信するようにする。プロキシが使えない場合は<img>のonerrorで元URLへ自動フォールバックする。
 function optimizeImgUrl(url, w, h){
   if(!url) return url;
-  if(/^https:\/\/trvimg\.r10s\.jp\/.*\/origin\//.test(url) || /^https:\/\/trvimg\.r10s\.jp\/share\/HOTEL\/\d+\/\d+\.jpg/.test(url)){
-    const base = url.split('?')[0];
-    return `${base}?fit=inside|${w}:${h}`;
-  }
-  return url;
+  const clean = url.split('?')[0];
+  const encoded = encodeURIComponent(clean);
+  // default=元URL: プロキシ側で取得・変換に失敗した場合、サーバー側で自動的に元画像へフォールバックしてくれる
+  return `https://wsrv.nl/?url=${encoded}&w=${w}&h=${h}&fit=inside&we=1&output=jpg&q=78&default=${encoded}`;
 }
 
 function artHTML(h, index, caption, showIdx, sizeHint){
