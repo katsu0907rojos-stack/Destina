@@ -3034,6 +3034,29 @@ function galleryNearestIndex(gallery, list){
   return best;
 }
 
+// ブラウザ標準の scrollTo({behavior:'smooth'}) は速度を指定できず、環境によっては
+// 300〜500ms前後かかることがあり、特にスマホでスワイプした直後の「次の写真へ切り替わる」
+// 体感が遅くストレスに感じられていた。速度を固定でコントロールできる自前の
+// アニメーションに置き換え、キビキビ切り替わるようにする。
+// 連打・連続スワイプで新しい目標が来たら、進行中のアニメーションは中断して
+// 新しい目標へすぐに向き直す（token方式で古いrequestAnimationFrameループを無効化）。
+function animateGalleryScroll(gallery, targetLeft, duration){
+  duration = duration || 180;
+  const token = (gallery._scrollAnimToken = (gallery._scrollAnimToken || 0) + 1);
+  const startLeft = gallery.scrollLeft;
+  const delta = targetLeft - startLeft;
+  if(Math.abs(delta) < 1) return;
+  const startTime = performance.now();
+  function step(now){
+    if(gallery._scrollAnimToken !== token) return; // 新しい目標に割り込まれたら中断
+    const t = Math.min(1, (now - startTime) / duration);
+    const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+    gallery.scrollLeft = startLeft + delta * eased;
+    if(t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
 function scrollGallery(btn, dir){
   const wrap = btn.closest('.gallery-wrap');
   const gallery = wrap.querySelector('.gallery');
@@ -3044,7 +3067,7 @@ function scrollGallery(btn, dir){
     : galleryNearestIndex(gallery, list);
   const target = Math.max(0, Math.min(list.length - 1, current + dir));
   gallery.dataset.targetIndex = String(target);
-  gallery.scrollTo({ left: list[target].offsetLeft, behavior: 'smooth' });
+  animateGalleryScroll(gallery, list[target].offsetLeft);
 }
 
 // ---------- ギャラリーのスワイプ操作 ----------
@@ -3071,7 +3094,7 @@ function scrollGallery(btn, dir){
     if(!list.length) return;
     const clamped = Math.max(0, Math.min(list.length - 1, index));
     gallery.dataset.targetIndex = String(clamped); // 矢印ボタンの連打処理と目標位置を同期させる
-    gallery.scrollTo({ left: list[clamped].offsetLeft, behavior: 'smooth' });
+    animateGalleryScroll(gallery, list[clamped].offsetLeft);
   }
 
   document.addEventListener('touchstart', function(e){
