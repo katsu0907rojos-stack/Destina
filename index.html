@@ -3100,20 +3100,34 @@ function renderFeed(){
     </div>`;
   }
   // 空室確認中は数百ms間隔でrenderFeed()が繰り返し呼ばれ、カード一覧のDOMを
-  // まるごと作り直すため、そのままだと写真ギャラリーを1枚めくった直後に
-  // DOMが再生成されてスクロール位置が先頭へ戻ってしまう（＝「めくれるがすぐ戻る」）。
-  // 再描画前に各ホテルのギャラリーのスクロール位置を記憶しておき、再描画後に復元する。
+  // まるごと作り直すため、そのままだと矢印クリックで次の写真へスクロール中に
+  // DOMが再生成され、途中経過のscrollLeft（スナップ境界の手前）がそのまま複製される。
+  // scroll-snapが最寄りのスナップ位置（＝クリック前の写真）へ戻してしまい、
+  // 「めくったのに元の写真に戻る」ように見えていた。
+  // そこで生のscrollLeftではなく「今向かっている枚数（目標インデックス）」を保存し、
+  // 再描画後はその枚数のスナップ位置へ直接（アニメーションなしで）合わせ直す。
   const scrollPositions = {};
   document.querySelectorAll('#cardList .gallery[data-hotel-id]').forEach(el => {
-    if(el.scrollLeft > 0) scrollPositions[el.dataset.hotelId] = el.scrollLeft;
+    const list = galleryFrames(el);
+    if(!list.length) return;
+    const targetIndex = el.dataset.targetIndex !== undefined
+      ? parseInt(el.dataset.targetIndex, 10)
+      : galleryNearestIndex(el, list);
+    if(targetIndex > 0) scrollPositions[el.dataset.hotelId] = targetIndex;
   });
 
   document.getElementById('cardList').innerHTML = errorBannerHtml + loadingHtml + list.map(h => cardHTML(h)).join('');
 
   if(Object.keys(scrollPositions).length){
     document.querySelectorAll('#cardList .gallery[data-hotel-id]').forEach(el => {
-      const saved = scrollPositions[el.dataset.hotelId];
-      if(saved) el.scrollLeft = saved;
+      const savedIndex = scrollPositions[el.dataset.hotelId];
+      if(!savedIndex) return;
+      const list = galleryFrames(el);
+      const clamped = Math.min(savedIndex, list.length - 1);
+      if(clamped > 0 && list[clamped]){
+        el.scrollLeft = list[clamped].offsetLeft;
+        el.dataset.targetIndex = String(clamped);
+      }
     });
   }
 }
