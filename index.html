@@ -3099,7 +3099,23 @@ function renderFeed(){
       ${lastApiError ? `<div class="api-error-detail">サーバーからの応答: ${lastApiError}</div>` : ''}
     </div>`;
   }
+  // 空室確認中は数百ms間隔でrenderFeed()が繰り返し呼ばれ、カード一覧のDOMを
+  // まるごと作り直すため、そのままだと写真ギャラリーを1枚めくった直後に
+  // DOMが再生成されてスクロール位置が先頭へ戻ってしまう（＝「めくれるがすぐ戻る」）。
+  // 再描画前に各ホテルのギャラリーのスクロール位置を記憶しておき、再描画後に復元する。
+  const scrollPositions = {};
+  document.querySelectorAll('#cardList .gallery[data-hotel-id]').forEach(el => {
+    if(el.scrollLeft > 0) scrollPositions[el.dataset.hotelId] = el.scrollLeft;
+  });
+
   document.getElementById('cardList').innerHTML = errorBannerHtml + loadingHtml + list.map(h => cardHTML(h)).join('');
+
+  if(Object.keys(scrollPositions).length){
+    document.querySelectorAll('#cardList .gallery[data-hotel-id]').forEach(el => {
+      const saved = scrollPositions[el.dataset.hotelId];
+      if(saved) el.scrollLeft = saved;
+    });
+  }
 }
 
 function cardHTML(h){
@@ -3117,7 +3133,7 @@ function cardHTML(h){
       <button class="gallery-arrow left" onclick="scrollGallery(this,-1)" aria-label="前の写真">
         <svg viewBox="0 0 10 10"><polygon points="8,0 8,10 0,5"/></svg>
       </button>
-      <div class="gallery">
+      <div class="gallery" data-hotel-id="${h.id}">
         ${h.photos.map((cap,i)=>`
           <div class="frame">
             ${artHTML(h, i, cap, true)}
