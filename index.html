@@ -2945,12 +2945,15 @@ function artStyle(hue, index, total){
 // そこで楽天側の挙動には依存せず、動作実績のある外部の画像リサイズプロキシ
 // （images.weserv.nl）を経由させ、表示先のサイズへ確実にリサイズ・再圧縮してから
 // 配信するようにする。プロキシが使えない場合は<img>のonerrorで元URLへ自動フォールバックする。
+// [経緯] 画像が重かったため、①楽天CDN独自の?fit=insideパラメータでの縮小 → ②外部の
+// リサイズプロキシ(images.weserv.nl)経由、の順に試したが、②はこのサイトがまだ誰にも
+// アクセスされておらずプロキシ側にキャッシュが一切ない状態だったため、
+// 「プロキシが楽天から元画像を取得→リサイズ→配信」という余計な一往復が挟まり、
+// 直接読み込むより遅くなってしまった。そのため直接読み込みに戻す。
+// 元画像が大きいこと自体は変わっていないが、loading="lazy"（画面外は読み込まない）と
+// decoding="async"（デコードでメインスレッドを止めない）は効果があるためそのまま残す。
 function optimizeImgUrl(url, w, h){
-  if(!url) return url;
-  const clean = url.split('?')[0];
-  const encoded = encodeURIComponent(clean);
-  // default=元URL: プロキシ側で取得・変換に失敗した場合、サーバー側で自動的に元画像へフォールバックしてくれる
-  return `https://wsrv.nl/?url=${encoded}&w=${w}&h=${h}&fit=inside&we=1&output=jpg&q=78&default=${encoded}`;
+  return url;
 }
 
 function artHTML(h, index, caption, showIdx, sizeHint){
@@ -2963,7 +2966,7 @@ function artHTML(h, index, caption, showIdx, sizeHint){
   // リサイズ指定に対応していないパスだった場合に備え、失敗時は元URLへ1回だけ
   // 自動フォールバックしてから諦める（いきなり画像が消えるのを防ぐ）
   const photoTag = optUrl
-    ? `<img class="frame-photo" loading="lazy" decoding="async" alt="${h.name}" src="${optUrl}" data-fallback="${realUrl}" onerror="if(this.dataset.fallback&&this.src!==this.dataset.fallback){this.src=this.dataset.fallback;}else{this.remove();}">`
+    ? `<img class="frame-photo" loading="lazy" decoding="async" alt="${h.name}" src="${optUrl}" onerror="this.remove()">`
     : '';
   return `<div class="frame-art" style="${artStyle(h.hue, index, h.photos.length)}">
       ${photoTag}
@@ -3420,7 +3423,7 @@ function renderMapPage(){
     const popupHtml = `
       <div class="map-pop">
         <div class="map-pop-photo" style="${artStyle(h.hue, 0, h.photos.length)}">
-          ${photo ? `<img loading="lazy" decoding="async" alt="${h.name}" src="${photo}" data-fallback="${h.hero||''}" onerror="if(this.dataset.fallback&&this.src!==this.dataset.fallback){this.src=this.dataset.fallback;}else{this.remove();}">` : ''}
+          ${photo ? `<img loading="lazy" decoding="async" alt="${h.name}" src="${photo}" onerror="this.remove()">` : ''}
         </div>
         <div class="map-pop-body">
           <div class="map-pop-name" onclick="closeMapPopupAndOpen('${h.id}')">${h.name}</div>
