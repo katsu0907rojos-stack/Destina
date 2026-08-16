@@ -247,6 +247,7 @@
   .gallery{
     display:flex; gap:6px; overflow-x:auto; scroll-snap-type:x mandatory;
     border-radius:2px; scrollbar-width:none; touch-action:pan-y;
+    will-change:scroll-position;
   }
   .gallery.no-snap{ scroll-snap-type:none; }
   .gallery::-webkit-scrollbar{ display:none; }
@@ -256,9 +257,14 @@
   }
   .frame:not(:first-child){ width:78%; aspect-ratio:3/2; }
   .frame img{ width:100%; height:100%; object-fit:cover; display:block; }
-  .frame-art{ width:100%; height:100%; position:relative; overflow:hidden; }
+  .frame-art{
+    width:100%; height:100%; position:relative; overflow:hidden;
+    transform:translateZ(0); /* mix-blend-modeのグレイン等をレイヤーとしてキャッシュし、
+      スクロール中に毎フレーム再描画されるのを防ぐ（ボタン操作時のカクつき対策） */
+  }
   .frame-photo{
     position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1;
+    transform:translateZ(0); backface-visibility:hidden; /* スワイプ中の再描画コストを抑えるため独立した描画レイヤーに昇格させる */
   }
   .frame-art::after{
     content:''; position:absolute; inset:0;
@@ -3140,6 +3146,17 @@ function scrollGallery(btn, dir){
     };
   }, { passive:true });
 
+  // タッチ座標の更新（touchmove）はiOSだと1フレームの間に何度も飛んでくることがある。
+  // 以前はそのたびに毎回 scrollLeft へ直接書き込んでいたため、1フレームに何度も
+  // 強制レイアウト計算(forced reflow)が走ってしまい、スワイプ中の描画がカクつく
+  // 原因になっていた。座標だけを記録しておき、実際の描画反映（scrollLeftの更新）は
+  // requestAnimationFrameで1フレームにつき1回だけ行うようにする。
+  function applyDragScroll(){
+    if(!drag) return;
+    drag.rafScheduled = false;
+    drag.gallery.scrollLeft = drag.startScrollLeft - drag.lastDx;
+  }
+
   document.addEventListener('touchmove', function(e){
     if(!drag) return;
     const t = e.touches[0];
@@ -3151,8 +3168,11 @@ function scrollGallery(btn, dir){
     }
     if(drag.axis === 'x'){
       e.preventDefault(); // 横方向の指の動きは、こちらで完全に制御する
-      drag.gallery.scrollLeft = drag.startScrollLeft - dx;
       drag.lastDx = dx;
+      if(!drag.rafScheduled){
+        drag.rafScheduled = true;
+        requestAnimationFrame(applyDragScroll);
+      }
     } else if(drag.axis === 'y'){
       drag = null; // 縦スクロールの意図なら、通常のページスクロールに任せる
     }
